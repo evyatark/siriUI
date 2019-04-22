@@ -1,0 +1,115 @@
+<!--
+<link href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
+<script src="//netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
+<script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+---- Include the above in your HEAD tag ---------->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+<!-- jQuery library -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<!-- Latest compiled JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="description" content="Free Web tutorials">
+  <meta name="keywords" content="HTML,CSS,XML,JavaScript, uzun yaşamın sırları">
+  <meta name="author" content="John Doe">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/js/bootstrap-datepicker.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.4.1/css/bootstrap-datepicker3.css"/>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.7.1/locales/bootstrap-datepicker.en.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.3/moment.min.js"></script>
+
+</head>
+<body style="background-color:#E6E6FA">
+    <script type="text/javascript">
+        $(document).ready(function(){
+
+            moment.locale('en');
+            //var ahmet = moment("25/04/2012","DD/MM/YYYY").year();
+            var date = new Date();
+            bugun = moment(date).format("DD/MM/YYYY");
+
+            var date_input=$('input[name="date"]'); //our date input has the name "date"
+            var container=$('.bootstrap-iso form').length>0 ? $('.bootstrap-iso form').parent() : "body";
+            var options={
+                //startDate: '+1d',
+                //endDate: '+0d',
+                container: container,
+                todayHighlight: true,
+                autoclose: true,
+                format: 'dd/mm/yyyy',
+                language: 'en',
+                //defaultDate: moment().subtract(15, 'days')
+                //setStartDate : "<DATETIME STRING HERE>"
+            };
+            date_input.val(bugun);
+            date_input.datepicker(options).on('focus', function(date_input){
+                $("h3").html("focus event");      
+            }); ;
+      
+      
+            date_input.change(function () {
+                var deger = $(this).val();
+                $("h3").html("<font color=green>" + deger + "</font>");
+            });      
+      
+ 
+      
+            $('.input-group').find('.glyphicon-calendar').on('click', function(){
+            //date_input.trigger('focus');
+            //date_input.datepicker('show');
+            //$("h3").html("event : click");
+
+
+                if( !date_input.data('datepicker').picker.is(":visible"))
+                {
+                    date_input.trigger('focus');
+                    $("h3").html("Ok"); 
+                
+                    //$('.input-group').find('.glyphicon-calendar').blur();
+                    //date_input.trigger('blur');
+                    //$("h3").html("görünür");    
+                } else {
+                }
+
+
+            });      
+ 
+ 
+        });
+    </script>
+</script>
+<div class="container">
+    <div class="row">
+       <div class="col-md-6 col-sm-6 col-xs-12">
+
+            <!-- Form code begins -->
+            <h3>בחר תאריך</h3>
+            <form method="post">
+                <div class="form-group"> <!-- Date input -->
+                    <label class="control-label" for="date">Select Date</label>
+                    <div class="input-group date" id="dp3" data-date="30-03-2019" data-date-format="mm-dd-yyyy">
+                        <input name="date" class="form-control" type="text" value="30-03-2019">
+                        <span class="input-group-addon btn"><i class="glyphicon glyphicon-calendar" id="butt"></i></span>
+                    </div>
+                </div>
+                  
+                <div class="form-group"> <!-- Submit button 
+                    <button class="btn btn-primary " name="submit" type="submit">Continue</button> -->
+                    <a href="selectLine.html" class="btn btn-primary" role="button">Continue to Select Routes</a>
+                </div>
+            </form>
+     
+     <!--
+     <a href="http://botanikbahcesi.com" style="color:black;text-decoration:underline;" target="_blank" title="Turkish botany garden - Türkiyenin botanik bahcesi">botanikbahcesi.com</a>
+     <img width="100%" class="img-thumbnail pull-right" src="http://1.gravatar.com/avatar/653eab1cb7e9e6fa245557fc826aa711?s=400?s=200" > 
+     -->
+
+     <!-- Form code ends --> 
+
+        </div>
+    </div>
+</div>
+</body>

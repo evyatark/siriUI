@@ -1,0 +1,203 @@
+# Getting Started
+
+### Guides
+The following guides illustrate how to use some features concretely:
+
+* [Building a RESTful Web Service](https://spring.io/guides/gs/rest-service/)
+* [Serving Web Content with Spring MVC](https://spring.io/guides/gs/serving-web-content/)
+* [Building REST services with Spring](https://spring.io/guides/tutorials/bookmarks/)
+
+### Data from GTFS
+
+given: makat
+
+from routes.txt:
+short name - same
+  routeIds - several. for each of them:
+    long name (+ create meaningful description of line)
+    direction
+    alternative
+    rest of data in route (including shape())
+
+
+given: routeId
+
+from routes.txt - 
+ short name
+ long name
+ route desc (makat)
+ agency id and agency name (from agency)
+
+from shapes:
+  shape Id
+  Array of all GPS points of the shape (each point is long+lat)
+
+from stops(?)
+    array of all stops in this route. for each stop:
+       Stop ID
+       stop code
+       stop name
+       stop sequence
+       gps coordinates long+lat (each such point is on the polyline shape)
+       specifically first stop and last stop (Siri uses only them)
+
+route has only one shape??
+
+from trips and stop times:
+    each route has a list of trips (?) - each trip has the same shape and stops, but is different in time of depart/arrive of each stop
+    Specifically, departueTime (of trip) is departure from 1st stop
+    and           arrivalTime (of trip) is arrival to last stop
+    so:
+    trips:[
+        trip:{ tripId, departureTime (oad), arrivalTime (estimated),
+            listOfStops:[stop1Data, stop2Data, ...]
+        }
+        trip:{}
+        ...
+    ]
+
+stop1Data is like data from stops, except it has additional data: arrivalTime of each stop, and departure time from first stop (oad)
+
+We could normalize and say that stop1Data contains the time data and an identifier of the StopData (from stops), but 
+it might be more convenient to duplicate the stop data, and in Stop1Data put all the data (data of a stop, and data of times for each trip through the stop)
+Also remember that from Siri we get more data about times in this stop
+
+from ServiceId and Calendar
+ we can calculate for each date (dd-mm-yyyy) what trips are scheduled for that date.
+ (this depends on day of week, and has a range of dates for which it is defined.)
+
+ in Trips table we have for a specific route many rows, each with a unique tripId (and the rest of data that comes with a trip).
+ BUT not all trips of the route are available every day. this is determined by the serviceId. so all trips with the same serviceId
+ are scheduled to week days (and date range) according to Calendar.
+
+ We will denormalize this data - it will use more disk/db-space, but will be easier to retrieve the whole info in one query. 
+
+
+
+### Data from Siri
+
+from siri we get events that carry a timestamp, gps location, and updated estimation of arrival time to last stop (this is because we query only the last stop).
+the rest of the data in the event is like in GTFS, and can be used to match each event to its GTFS route+trip+date.
+
+So one possible representation is:
+
+GTFS data : route, trip, service, list of stops
++ list of siri events
+
+
+
+
+total JSON representation (take #1)
+
+{
+    gtfsTrip: {
+        makat: "xxx",
+        routeId: "nnnnn",
+        shortName: "420",
+        agencyId: "nn",
+        agencyName: "Hebrew Characters",
+        longName: "Hebrew Characters from xxx to yyy"
+        routeDesc: "(makat)-(direction)-(alternative)",
+        direction: "n",
+        alternative: "ccc",
+        shape : {
+            shapeId: "xxx",
+            shapePoints: [
+                {
+                    sequence: "",   // 1, 2, 3, ...
+                    long: "",
+                    lat: "",            // or [nnn, mmm]  (convention long, lat)
+                    isLast: "false"     // we need a way to identify last stop
+                }
+
+                or add:
+
+
+                or
+
+                [long, lat], [long, lat], ...
+            ]
+
+            and add:  (??)
+            lastPoint : {
+                sequence: "",   // 530 (the maximal sequence in the shapePoints array)
+                long: "",
+                lat: "",
+            }
+        }   // end shape
+
+        trip: {
+            tripId: "xxx",                          // could be empty if this is a general trip of this route
+            serviceId: "yyyy",                      // could be empty if this is a general trip of this route
+            originalAimedDeparture: "TIMESTAMP",        // with date?
+            estimatedArrival: "timestamp",        // ToLastStop, according to GTFS
+
+            stops: [
+                {
+                    sequence: "1",
+                    stopId: "xx",
+                    stopCode: "yy",
+                    stopName: "Hebrew Characters",
+                    gps: {
+                        long: "",
+                        lat: "",            // or [nnn, mmm]  (convention long, lat)
+                    },
+                    aimedDeparture: ""      // same as originalAimedDeparture above (redundant?)        // could be empty if this is a general trip of this route
+                },
+                {
+                    sequence: "nn",
+                    stopId: "xx",
+                    stopCode: "yy",
+                    stopName: "Hebrew Characters",
+                    gps: {
+                        long: "",
+                        lat: "",            // or [nnn, mmm]  (convention long, lat)
+                    },
+                    estimatedArrival: ""    // for each stop (so not redundant)                         // could be empty if this is a general trip of this route
+                    // in general each stop has both arrivalTime and departureTime. They are usually the same (except if bus makes a stop of 10-15 minutes)
+                },
+                ...     // more stops
+
+            ],       // end of stops
+            last: {     // same as last stop in stops array
+                    sequence: "nn",
+                    stopId: "xx",
+                    stopCode: "yy",
+                    stopName: "Hebrew Characters",
+                    gps: {
+                        long: "",
+                        lat: "",            // or [nnn, mmm]  (convention long, lat)
+                    },
+                    estimatedArrival: ""    // same as estimatedArrival (of last stop) above
+            }
+        }   // end of trip
+
+    },      // end of GTFS part
+    siri: {                                 // could be empty if we represent a GTFS trip (without realtime data)
+        /* redundant?   
+            routeId: "",
+            agencyCode: "",
+            originalAimedDeparture: "",
+        */
+        tripId: "",                         // according to Siri (not exactly same as GTFS)
+        originalAimedDeparture: "",         // supposed to be same as GTFS
+        vehicleId: "",
+        events: [
+            {   // first event
+                timestamp: "",          // of siri event (actually - time of response (?) from siri server)
+                vehicleId: "",      // same for all events, so redundant?
+                gps: {
+                    timestamp: "",      // of gps reading
+                    long: "",
+                    lat: "",            // or [nnn, mmm]  (convention long, lat)
+                },
+                estimatedArrival: "",       // to last stop. changes during trip, so not same as the GTFS estimatedArrival
+            },
+            {   // second event
+
+            },
+            ...
+        ]   // end events
+
+    }       // end siri part
+}
