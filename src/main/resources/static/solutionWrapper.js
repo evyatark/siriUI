@@ -1,8 +1,8 @@
 /*
 Please consider that the JS part isn't production ready at all, I just code it to show the concept of merging filters and titles together !
 */
-$(document).ready(function () {
-    $('.filterable .btn-filter').click(function () {
+$(document).ready(function(){
+    $('.filterable .btn-filter').click(function(){
         var $panel = $(this).parents('.filterable'),
             $filters = $panel.find('.filters input'),
             $tbody = $panel.find('.table tbody');
@@ -16,7 +16,7 @@ $(document).ready(function () {
         }
     });
 
-    $('.filterable .filters input').keyup(function (e) {
+    $('.filterable .filters input').keyup(function(e){
         /* Ignore tab key */
         var code = e.keyCode || e.which;
         if (code == '9') return;
@@ -28,7 +28,7 @@ $(document).ready(function () {
             $table = $panel.find('.table'),
             $rows = $table.find('tbody tr');
         /* Dirtiest filter function ever ;) */
-        var $filteredRows = $rows.filter(function () {
+        var $filteredRows = $rows.filter(function(){
             var value = $(this).find('td').eq(column).text().toLowerCase();
             return value.indexOf(inputContent) === -1;
         });
@@ -39,11 +39,11 @@ $(document).ready(function () {
         $filteredRows.hide();
         /* Prepend no-result row if all rows are filtered */
         if ($filteredRows.length === $rows.length) {
-            $table.find('tbody').prepend($('<tr class="no-result text-center"><td colspan="' + $table.find('.filters th').length + '">No result found</td></tr>'));
+            $table.find('tbody').prepend($('<tr class="no-result text-center"><td colspan="'+ $table.find('.filters th').length +'">No result found</td></tr>'));
         }
     });
 
-    $('#myTable').on('click', '.clickable-row', function (event) {
+    $('#myTable').on('click', '.clickable-row', function(event) {
         $(this).addClass('active').siblings().removeClass('active');
     });
 });

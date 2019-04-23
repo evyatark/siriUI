@@ -1,149 +1,90 @@
 <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
-<!--
-<script type="text/javascript" src="tripsTable.js"></script>
--->
-        <link rel="stylesheet" href="solutionWrapper.css">
-    </head>
-    <body>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="selectLine.js"></script>
+    <link rel="stylesheet" href="selectLine.css">
+
+    <link rel="stylesheet" href="solutionWrapper.css">
+</head>
+<body>
 
 
-        <section id="contact">
-            <div class="container-fluid">
-                <div class="well well-md">
-                    <h2>
-                        <p><b>Route 7716</b>________מכפר סבא לירושלים________<strong>מטרופולין קו  149    _________ 25/03/2019 </strong>
-                        </p>
-                    </h2>
-                </div>
-                
-                <div class="row">
-                    <div id="map_frame" class="col-md-10">
-                        <iframe src="solution.html" width="100%" height="700 px" frameborder="0" style="border:0" allowfullscreen></iframe>
-                    </div>
-                    <!--
-                    <div class="col-md-2">
-                        <h4><strong>Trip 30075209_180319</strong></h4>
-                            <blockquote class="quote-box">
-                                <p class="quote-text">Siri Data</p>
-                                <div class="form-group">
-                                    <input id="siri_current_time" type="text" class="form-control" name="" value="" placeholder="Current Time">
-                                </div>
-                                <div class="form-group">
-                                    <input id="siri_line_name" type="text" class="form-control" name="" value="" placeholder="Line Name">
-                                </div>
-                                <div class="form-group">
-                                    <input id="siri_vehicle_id" type="text" class="form-control" name="" value="" placeholder="Vehicle ID">
-                                </div>
-                                <div class="form-group">
-                                    <input id="siri_departure" type="text" class="form-control" name="" value="" placeholder="Departure">
-                                </div>
-                                <div class="form-group">
-                                    <input id="siri_estimated_arrival" type="text" class="form-control" name="" value="" placeholder="Estimated Arrival">
-                                </div>
-        
-                            </blockquote>
-                            <blockquote class="quote-box">
-                                <p class="quote-text">GTFS Data</p>
-                                <div class="form-group">
-                                    <input id="gtfs_stop_code" type="text" class="form-control" name="" value="" placeholder="Stop Code">
-                                </div>
-                                <div class="form-group">
-                                    <input id="gtfs_stop_id" type="text" class="form-control" name="" value="" placeholder="Stop ID">
-                                </div>
-                                <div class="form-group">
-                                    <input id="gtfs_stop_name" type="text" class="form-control" name="" value="" placeholder="Stop Name">
-                                </div>
-                                <div class="form-group">
-                                    <input id="gtfs_stop_sequence" type="text" class="form-control" name="" value="" placeholder="Stop Sequence">
-                                </div>
-                            </blockquote>
-                    </div>
-                    -->
-                    <div class="col-md-2">
-                        <h4><strong>Trip 30075209_180319</strong></h4>
-                        <blockquote class="quote-box">
-                            <p class="quote-text">Siri Data</p>
-                            <div class="form-group">
-                                <button id="Trip #1"  type="text" class="btn btn-primary" >5:20 Trip 37203669</button>
-                            </div>
-                            <div class="form-group">
-                                <input id="Trip #2" type="text" class="form-control" name="" value="trip 2">
-                            </div>
-                            <div class="form-group">
-                                <input id="Trip #3" type="text" class="form-control" name="" value="trip 3">
-                            </div>
-                            <div class="form-group">
-                                <input id="Trip #4" type="text" class="form-control" name="" value="trip 4">
-                            </div>
-                            <div class="form-group">
-                                <input id="Trip #5" type="text" class="form-control" name="" value="trip 5">
-                            </div>
+<section id="contact">
+    <div class="container-fluid">
+        <div class="well well-md">
+            <h2>
+                <p><b>Route 7716</b>________מכפר סבא לירושלים________<strong>מטרופולין קו 149 _________
+                    25/03/2019 </strong>
+                </p>
+            </h2>
+        </div>
 
-                            <div class="container">
-                                <div class="row">
-                                    <div class="panel panel-primary filterable">
-                                        <div class="panel-heading">
-                                            <h3 class="panel-title">trips</h3>
-                                            <div class="pull-right">
-                                                <button class="btn btn-default btn-xs btn-filter"><span class="glyphicon glyphicon-filter"></span> Filter</button>
-                                            </div>
-                                        </div>
-                                        <table id="myTable" class="table table-hover">
-                                            <thead>
-                                                <tr class="filters">
-                                                    <th><input type="text" class="form-control" placeholder="Original Aimed Departure" disabled></th>
-                                                    <th><input type="text" class="form-control" placeholder="Trip ID" disabled></th>
-                                                    <th><input type="text" class="form-control" placeholder="From" disabled></th>
-                                                    <th><input type="text" class="form-control" placeholder="Destination" disabled></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="all_lines">
-                                                <tr class="clickable-row">
-                                                    <td>420</td>
-                                                    <td>סופרבוס</td>
-                                                    <td>ירושלים</td>
-                                                    <td>בית שמש</td>
-                                                </tr>
-                                                <tr class="clickable-row">
-                                                    <td>420</td>
-                                                    <td>סופרבוס</td>
-                                                    <td>בית שמש</td>
-                                                    <td>ירושלים</td>
-                                                </tr>
-                                                <tr class="clickable-row">
-                                                    <td>480</td>
-                                                    <td>אגד</td>
-                                                    <td>תל אביב</td>
-                                                    <td>ירושלים</td>
-                                                </tr>
-
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </blockquote>
-                    </div>
-                </div>
-
-                <div class="container-fluid" >
-                        <div id="foot" class="well well-md">
-                
-                                <a href="tripsTable.html" class="btn btn-primary" role="button">Select another trip on Map</a>
-                           
-                                <a href="selectLine.html" class="btn btn-primary" role="button">Select another Line</a>
-                            </div>  
-                            </div>               
+        <div class="row">
+            <div id="map_frame" class="col-md-9">
+                <iframe src="solution.html" width="100%" height="700 px" frameborder="0" style="border:0"
+                        allowfullscreen></iframe>
             </div>
-        </section>
+            <div class="col-md-3">
+                <h4><strong>Superbus 420 Route 15531 from BS to JM</strong></h4>
+                <blockquote class="quote-box">
+                    <div class="row">
+                        <div class="panel panel-primary filterable">
+                            <div class="panel-heading">
+                                <h3 class="panel-title">trips</h3>
+                                <div class="pull-right">
+                                    <button class="btn btn-default btn-xs btn-filter"><span
+                                            class="glyphicon glyphicon-filter"></span> Filter
+                                    </button>
+                                </div>
+                            </div>
+                            <table id="myTable" class="table table-hover">
+                                <thead>
+                                    <tr class="filters">
+                                        <th><input type="text" class="form-control" placeholder="Original Aimed Departure"
+                                                   disabled></th>
+                                        <th><input type="text" class="form-control" placeholder="Trip ID" disabled></th>
+                                        <th><input type="text" class="form-control" placeholder="Vehicle" disabled></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="all_lines">
+                                    <tr class="clickable-row">
+                                        <td>5:20</td>
+                                        <td>37203669</td>
+                                        <td>31-750-78</td>
+                                    </tr>
+                                    <tr class="clickable-row">
+                                        <td>5:30</td>
+                                        <td>37203559</td>
+                                        <td>31-803-78</td>
+                                    </tr>
+                                    <tr class="clickable-row">
+                                        <td>5:40</td>
+                                        <td>37203564</td>
+                                        <td>346-39-401</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </blockquote>
+            </div>
+        </div>
+
+        <div class="container-fluid">
+            <div id="foot" class="well well-md">
+
+                <a href="tripsTable.html" class="btn btn-primary" role="button">Select another trip on Map</a>
+
+                <a href="selectLine.html" class="btn btn-primary" role="button">Select another Line</a>
+            </div>
+        </div>
+    </div>
+</section>
 
 
-
-    </body>
+</body>
 </html>

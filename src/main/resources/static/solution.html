@@ -1,16 +1,19 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-<!-- version 0.12 -->
-	<title>אוטובוס פתוח - קו 149</title>
+    <!-- version 0.12 -->
+    <title>אוטובוס פתוח - קו 149</title>
 
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js" integrity="sha512-/Nsx9X4HebavoBvEBuyp3I7od5tA0UzAxs+j83KgC8PU0kgB4XiK4Lfe4y4cgBtaRJQEIFCW+oC506aPT2L1zw==" crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.1/dist/leaflet.css"
+          integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ=="
+          crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.3.1/dist/leaflet.js"
+            integrity="sha512-/Nsx9X4HebavoBvEBuyp3I7od5tA0UzAxs+j83KgC8PU0kgB4XiK4Lfe4y4cgBtaRJQEIFCW+oC506aPT2L1zw=="
+            crossorigin=""></script>
     <script src="allTrips.js"></script>
 
     <style>
@@ -20,27 +23,18 @@
             padding: 10px;
             right: 0;
             width: 12%;
-            
+
             margin: 10px;
             border-radius: 10px;
             box-shadow: 4px 4px 4px grey;
             min-height: 200px
         }
     </style>
-    
+
 </head>
 <body>
-<!--
-    <div id="overlay">
-        <h3>Route 7716</h3>
-        <b>line 149</b>
-        <label id="tripId" tripid="30075214_180319"><p>trip 30075214_180319</p></label>
-        <label id="label"></label>
-        <input type="text" id="abc"/>
-        <button id="toggleRoute">Toggle</button> 
-    </div> 
--->
-    <div id="mapid" style="width: 100%; height: 680px;"></div>
+
+<div id="mapid" style="width: 100%; height: 680px;"></div>
 
 
 <script type="text/javascript">
@@ -49,12 +43,12 @@
         $("gtfs_stop_code").value = value;
     }
 
-    $("#tripId").click(function(e){
+    $("#tripId").click(function (e) {
         removeTripFromMap(e.currentTarget.attributes['tripid'].value);
     });
     var mymap = 0;
     var mapAllRoutesDisplayed = new Map();
-    
+
 
     const log = false;
 
@@ -64,7 +58,7 @@
             zoomControl: true,
             attributionControl: false,
         }).setView(
-            [32.008494,34.895529], // center is set here
+            [32.008494, 34.895529], // center is set here
             12);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -81,7 +75,6 @@
         return polyline;
     }
 
-   
 
     function displaySiriPointsOnMap(siriPoints, iconFileName) {
         // siriPoints is an array of objects like this:
@@ -104,25 +97,30 @@
             iconFileName = 'red-pin.svg';
         }
         let iconYellow = L.icon({
-                            iconUrl: '/home/evyatar/work/hasadna/Hackathon2019/icons/' + iconFileName,
-                            iconSize: 30
-                        });
-        const siriMarkers = siriPoints.map(siriPoint => 
+            iconUrl: './icons/' + iconFileName,
+            iconSize: 30
+        });
+        const siriMarkers = siriPoints.map(siriPoint =>
             {
                 const coordinates = siriPoint.geometry.coordinates;
-                const title = "time:" + siriPoint.properties.time_recorded ;
-                const marker = L.marker(coordinates, {icon: iconYellow, title: title, riseOnHover: true}).addTo(mymap).bindPopup("<b>time:" + siriPoint.properties.time_recorded + "</b>" );
-                marker.on('mouseover', function(e) {
-                    let sp = siriPoint.properties;
-                    parent.document.getElementById('siri_current_time').value = 'Time: '+sp.time_recorded;
-                    parent.document.getElementById('siri_line_name').value = "קו 149";//sp.properties.missing;
-                    parent.document.getElementById('siri_vehicle_id').value = "vehicle Id: 3174039";//sp.properties.missing;
-                    parent.document.getElementById('siri_departure').value = "יצא ב 06:14";//sp.properties.missing;
-                    parent.document.getElementById('siri_estimated_arrival').value = "אמור להגיע ב 07:14";//sp.properties.missing;
-                }).on('mouseout', clearSiriPointDisplay);
-                return marker;
-            }
-        );
+        const title = "time:" + siriPoint.properties.time_recorded;
+        const marker = L.marker(coordinates, {
+            icon: iconYellow,
+            title: title,
+            riseOnHover: true
+        }).addTo(mymap).bindPopup("<b>time:" + siriPoint.properties.time_recorded + "</b>");
+        // marker.on('mouseover', function(e) {
+        //     let sp = siriPoint.properties;
+        //     parent.document.getElementById('siri_current_time').value = 'Time: '+sp.time_recorded;
+        //     parent.document.getElementById('siri_line_name').value = "קו 149";//sp.properties.missing;
+        //     parent.document.getElementById('siri_vehicle_id').value = "vehicle Id: 3174039";//sp.properties.missing;
+        //     parent.document.getElementById('siri_departure').value = "יצא ב 06:14";//sp.properties.missing;
+        //     parent.document.getElementById('siri_estimated_arrival').value = "אמור להגיע ב 07:14";//sp.properties.missing;
+        // }).on('mouseout', clearSiriPointDisplay);
+        return marker;
+    }
+    )
+        ;
         return siriMarkers;
     }
 
@@ -153,22 +151,22 @@
 				},
         */
         let iconYellow = L.icon({
-                            iconUrl: '/home/evyatar/work/hasadna/Hackathon2019/icons/yellow-flag.svg',
-                            iconSize: 30
-                        });
-        const stopsMarkers = stops.map(stop => 
+            iconUrl: '/home/evyatar/work/hasadna/Hackathon2019/icons/yellow-flag.svg',
+            iconSize: 30
+        });
+        const stopsMarkers = stops.map(stop =>
             {
 
                 const coordinates = stop.geometry.coordinates;
-                const marker = L.marker(coordinates, {icon: iconYellow}).addTo(mymap).bindPopup("<b>code:" + 
-                                    stop.properties.stop_code + 
-                                    "</b><br>id:" + 
-                                    stop.properties.stop_id);
-                marker.on('mouseover', function(e) {
-                    let x = parent.document.getElementById('gtfs_stop_code');   
-                    // gtfs_stop_code in the parent document - 
+                const marker = L.marker(coordinates, {icon: iconYellow}).addTo(mymap).bindPopup("<b>code:" +
+                                stop.properties.stop_code +
+                                "</b><br>id:" +
+                                stop.properties.stop_id);
+                marker.on('mouseover', function (e) {
+                    let x = parent.document.getElementById('gtfs_stop_code');
+                    // gtfs_stop_code in the parent document -
                     //works in Firefox but not in Chrome
-                    // in Chrome use https://www.thegeekstuff.com/2016/09/disable-same-origin-policy/ 
+                    // in Chrome use https://www.thegeekstuff.com/2016/09/disable-same-origin-policy/
                     //x.placeholder=stop.properties.stop_code;      // possible to change placeholder text
                     parent.document.getElementById('gtfs_stop_code').value = stop.properties.stop_code;
                     parent.document.getElementById('gtfs_stop_id').value = stop.properties.stop_id;
@@ -181,22 +179,39 @@
     }
 
     function clearStopDisplay(event) {
-        parent.document.getElementById('gtfs_stop_code').value="";
-        parent.document.getElementById('gtfs_stop_id').value="";
-        parent.document.getElementById('gtfs_stop_name').value ="";
+        parent.document.getElementById('gtfs_stop_code').value = "";
+        parent.document.getElementById('gtfs_stop_id').value = "";
+        parent.document.getElementById('gtfs_stop_name').value = "";
 
+    }
+
+    function populateTripsGrid(allTrips) {
+        //parent.document.getElementById('ph').innerText = "Tripss";
+        const xx = parent.document.getElementById('all_lines');
+        xx.innerHTML = "<tr class=\"clickable-row\"><td>7:20</td><td>tripId</td><td>vehicleNumber</td></tr>" + xx.innerHTML;
+        const trips = allTrips.gtfsTrips.reverse();
+        for (let i = 0; i < trips.length; i++) {
+            let trip = trips[i];
+            let tripId = trip.siriTripId;
+            let vid = trip.vehicleId;
+            let oad = trip.originalAimedDeparture
+            // generate td
+            let td = "<tr class=\"clickable-row\"><td>" + oad +"</td><td>" + tripId + "</td><td>" + vid + "</td></tr>";
+            xx.innerHTML = td + xx.innerHTML;
+        }
     }
 
     function displayAll(tripObject, color) {
         if (!color) {
             color = 'red';      // color of the markers
         }
-        let polyline={};
+        let polyline = {};
         if (tripObject.shape) {
             polyline = displayRouteOnMap(tripObject.shape.coordinates, 'red');    // color of the polyline
         }
         //const stopsMarkers = displayStopsOnMap(tripObject.stops);
         const siriMarkers = displaySiriPointsOnMap(tripObject.siri.features, color + '-pin.svg');   // color of the markers
+        //populateTripsGrid();
         return {
             route: {}, // polyline,
             stops: {}, //stopsMarkers,
@@ -211,13 +226,17 @@
     function removeAll(tripId) {
         routeObject = mapAllRoutesDisplayed.get(tripId);
         routeObject.route.removeFrom(mymap);   //: polyline,
-        routeObject.stops.forEach(stop => stop.removeFrom(mymap));   //: stopsMarkers,
-        routeObject.siri.forEach(point => point.removeFrom(mymap));    //: siriMarkers
+        routeObject.stops.forEach(stop => stop.removeFrom(mymap)
+    )
+        ;   //: stopsMarkers,
+        routeObject.siri.forEach(point => point.removeFrom(mymap)
+    )
+        ;    //: siriMarkers
     }
 
-    $(document).ready(function(){
+    $(document).ready(function () {
         const x = allTrips; // allTrips arrives from including allTrips.js. In production will arrive from Python analysis of Siri Data
-        const sampleLineString = x.gtfsTrips[0].shape ; // this is a geoJson
+        const sampleLineString = x.gtfsTrips[0].shape; // this is a geoJson
 
         mymap = initMap();
 
@@ -229,8 +248,11 @@
             siri: siriMarkers
         }
         */
-        const route1 = displayAll(x.gtfsTrips[31], 'black');
-        mapAllRoutesDisplayed.set(x.gtfsTrips[31].tripId, route1);
+        const numberOfTrips = x.gtfsTrips.length;
+        console.log("gtfs trips: " + numberOfTrips);
+        populateTripsGrid(x);
+        const route1 = displayAll(x.gtfsTrips[1], 'black');
+        mapAllRoutesDisplayed.set(x.gtfsTrips[1].tripId, route1);
 
         //removeAll(x.gtfsTrips[1].tripId);
         //L.geoJSON(sampleLineString).addTo(mymap); // does not work... why?

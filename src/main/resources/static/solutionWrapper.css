@@ -1,5 +1,5 @@
 blockquote{
-    height: 300px;
+    height: 600px;
 }
 
 .quote-badge{
@@ -8,7 +8,7 @@ blockquote{
 
 .quote-box{
     
-    overflow: hidden;
+    overflow: scroll;
     margin-top: -50px;
     padding-top: -100px;
     border-radius: 17px;
