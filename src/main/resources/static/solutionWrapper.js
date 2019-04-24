@@ -1,3 +1,36 @@
+// this variable is in top-level of script, so it should be accessible in all scripts
+// initialized in this script, when solutionWrapper.html finished loading...
+var allTripsFromJs;
+
+// changes the document by adding more lines to the table in element "all_lines"
+// the new rows come from allTrips - the argument to this function.
+// Called when this page loads.
+// And probably also when user switches to another route or date (TBD).
+//
+// argument allTrips is an object with format like the sample in allTrips.js
+//
+function populateTripsGrid(allTrips) {
+    const tableElement = document.getElementById('all_lines');
+    const trips = allTrips.gtfsTrips.reverse();
+    for (let i = 0; i < trips.length; i++) {
+        let trip = trips[i];
+        let tripId = trip.siriTripId;
+        let vid = trip.vehicleId;
+        let oad = trip.originalAimedDeparture;
+        // generate td
+        let td = "<tr class=\"clickable-row\"><td>" + oad + "</td><td>" + tripId + "</td><td>" + vid + "</td></tr>";
+        tableElement.innerHTML = td + tableElement.innerHTML;
+    }
+}
+
+// argument: tripId : String - the SIRI value of tripId
+function findGtfsTripObject(tripId) {
+    console.log("value of allTripsFromJs is:" + allTripsFromJs);
+    const gtfsTrip = allTripsFromJs.gtfsTrips.find(gTrip => gTrip.siriTripId == tripId);
+    console.log("found gtfsTrip for tripId=" + tripId);
+    return gtfsTrip;
+}
+
 /*
 Please consider that the JS part isn't production ready at all, I just code it to show the concept of merging filters and titles together !
 */
@@ -46,9 +79,23 @@ $(document).ready(function(){
     $('#myTable').on('click', '.clickable-row', function(event) {
         $(this).addClass('active').siblings().removeClass('active');
         let tripId = event.currentTarget.children[1].textContent;
-        console.log("clicked line with tripId=" + tripId);
-        askDisplayAll(tripId);
+        console.log("solutionWrapper: clicked line with tripId=" + tripId);
+        let i = iframe.id;
+        iframe.contentWindow.askDisplayAll(findGtfsTripObject(tripId));
+        //askDisplayAll(findGtfsTripObject(tripId));
         //removeTripFromMap(previousTripId);
         //console.log("done removing trip " + previousTripId);
     });
+
+    allTripsFromJs = allTrips; // allTrips arrives from including allTrips.js. In production will arrive from Python analysis of Siri Data
+    console.log("solutionWrapper: allTripsFromJs initialized to allTrips (content of js file)")
+    const sampleVehicleId = allTripsFromJs.gtfsTrips[0].vehicleId;
+    console.log("solutionWrapper: vehicleId of first trip is " + sampleVehicleId);
+
+    // populate the table with trips
+    const numberOfTrips = allTripsFromJs.gtfsTrips.length;
+    console.log("gtfs trips: " + numberOfTrips);
+    populateTripsGrid(allTripsFromJs);
+
+
 });

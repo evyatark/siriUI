@@ -1,11 +1,12 @@
-var mymap = 0;
+//var mymap ;   - declared in script in solution.html
 var mapAllRoutesDisplayed = new Map();
-var allTripsFromJs = []; // initialized in solution.html ready function, to content of allTrips
+var allTripsFromJs ; // initialized in solution.html ready function, to content of allTrips
 
 const log = false;
 
 function displayRouteOnMap(shape, color1) {
     console.log('displaying shape...  (' + shape.length + ' points)');
+    // mymap is declared in script in solution.html
     const polyline = L.polyline(shape, {color: color1}).addTo(mymap);
     console.log('polyline added to map');
     mymap.fitBounds(polyline.getBounds());
@@ -14,6 +15,8 @@ function displayRouteOnMap(shape, color1) {
 
 
 function displaySiriPointsOnMap(siriPoints, iconFileName) {
+    // mymap is declared in script in solution.html
+    console.log("displaySiriPointsOnMap: mymap=" + mymap);
     // siriPoints is an array of objects like this:
     /*
         {
@@ -37,6 +40,7 @@ function displaySiriPointsOnMap(siriPoints, iconFileName) {
         iconUrl: './icons/' + iconFileName,
         iconSize: 30
     });
+    console.log("siriPoints array has size " + siriPoints.length);
     const siriMarkers = siriPoints.map(siriPoint => {
             const coordinates = siriPoint.geometry.coordinates;
             const title = "time:" + siriPoint.properties.time_recorded;
@@ -120,33 +124,22 @@ function clearStopDisplay(event) {
 
 }
 
-function populateTripsGrid(allTrips) {
-    const xx = parent.document.getElementById('all_lines');
-    // xx.innerHTML = "<tr class=\"clickable-row\"><td>7:20</td><td>tripId</td><td>vehicleNumber</td></tr>" + xx.innerHTML;
-    const trips = allTrips.gtfsTrips.reverse();
-    for (let i = 0; i < trips.length; i++) {
-        let trip = trips[i];
-        let tripId = trip.siriTripId;
-        let vid = trip.vehicleId;
-        let oad = trip.originalAimedDeparture;
-        // generate td
-        let td = "<tr class=\"clickable-row\"><td>" + oad + "</td><td>" + tripId + "</td><td>" + vid + "</td></tr>";
-        xx.innerHTML = td + xx.innerHTML;
-    }
-}
 
-function askDisplayAll(tripId) {
-    console.log("value of allTripsFromJs is:" + allTripsFromJs);
-    const gtfsTrip = allTripsFromJs.gtfsTrips.find(gTrip => gTrip.siriTripId == tripId);
-    console.log("found gtfsTrip for tripId=" + tripId);
-    const route1 = displayAll(gtfsTrip, 'black');
-    console.log("add route to map by tripId...")
+// arg gtfsTripObject is an object of the format in allTrips
+function askDisplayAll(gtfsTripObject) {
+    // mymap was declared as var in script in solution.html
+    // so it should be available here
+    let tripId = gtfsTripObject.siriTripId;
+    console.log("asked to display trip with siri tripId=" + tripId);
+    console.log("mymap=" + mymap);
+    const route1 = displayAll(mymap, gtfsTripObject, 'black');
+    console.log("add route to map by tripId...");
     mapAllRoutesDisplayed.set(tripId, route1);
     console.log("added. map now contains " + mapAllRoutesDisplayed.size);
 
 }
 
-function displayAll(tripObject, color) {
+function displayAll(mymap, tripObject, color) {
     if (!color) {
         color = 'red';      // color of the markers
     }
@@ -176,3 +169,57 @@ function removeAll(routeObject) {
         routeObject.siri.forEach(point => point.removeFrom(mymap));    //: siriMarkers
     }
 }
+
+function setStopCodeValue(value) {
+    $("gtfs_stop_code").value = value;
+}
+
+$("#tripId").click(function (e) {
+    removeTripFromMap(e.currentTarget.attributes['tripid'].value);
+});
+
+
+function initMap() {
+    //const mapid = document.getElementById('mapid');
+    // mymap is declared in script in solution.html
+    // here it is initialized
+    //mymap = L.map(mapid, {
+    mymap = L.map('mapid', {
+        // options can go in here
+        zoomControl: true,
+        attributionControl: false,
+    }).setView(
+        [31.738494, 34.995529], // center is set here
+        14);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+    }).addTo(mymap);
+    return mymap;
+}
+
+$(document).ready(function () {
+    allTripsFromJs = allTrips; // allTrips arrives from including allTrips.js. In production will arrive from Python analysis of Siri Data
+    console.log("allTripsFromJs initialized to allTrips (content of js file)")
+    const sampleVehicleId = allTripsFromJs.gtfsTrips[0].vehicleId;
+    console.log("vehicleId of first trip is " + sampleVehicleId);
+
+    //mymap = initMap();    // done in solution.html
+
+    /*
+    returns this object - can be used to remove this route from map
+    {
+        route: polyline,
+        stops: stopsMarkers,
+        siri: siriMarkers
+    }
+    */
+    // moved to solutionWrapper.js
+    // const numberOfTrips = allTripsFromJs.gtfsTrips.length;
+    // console.log("gtfs trips: " + numberOfTrips);
+    // populateTripsGrid(allTripsFromJs);
+
+    //const route1 = displayAll(allTripsFromJs.gtfsTrips[1], 'black');
+    //mapAllRoutesDisplayed.set(allTripsFromJs.gtfsTrips[1].tripId, route1);
+
+});
