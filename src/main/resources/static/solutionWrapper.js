@@ -45,5 +45,10 @@ $(document).ready(function(){
 
     $('#myTable').on('click', '.clickable-row', function(event) {
         $(this).addClass('active').siblings().removeClass('active');
+        let tripId = event.currentTarget.children[1].textContent;
+        console.log("clicked line with tripId=" + tripId);
+        askDisplayAll(tripId);
+        //removeTripFromMap(previousTripId);
+        //console.log("done removing trip " + previousTripId);
     });
 });
