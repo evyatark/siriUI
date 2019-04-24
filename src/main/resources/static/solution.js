@@ -3,12 +3,17 @@ var mapAllRoutesDisplayed = new Map();
 var allTripsFromJs ; // initialized in solution.html ready function, to content of allTrips
 
 const log = false;
+function clog(arg) {
+    if (log) {
+        console.log(arg);
+    }
+}
 
 function displayRouteOnMap(shape, color1) {
-    console.log('displaying shape...  (' + shape.length + ' points)');
+    clog('displaying shape...  (' + shape.length + ' points)');
     // mymap is declared in script in solution.html
     const polyline = L.polyline(shape, {color: color1}).addTo(mymap);
-    console.log('polyline added to map');
+    clog('polyline added to map');
     mymap.fitBounds(polyline.getBounds());
     return polyline;
 }
@@ -16,7 +21,7 @@ function displayRouteOnMap(shape, color1) {
 
 function displaySiriPointsOnMap(siriPoints, iconFileName) {
     // mymap is declared in script in solution.html
-    console.log("displaySiriPointsOnMap: mymap=" + mymap);
+    clog("displaySiriPointsOnMap: mymap=" + mymap);
     // siriPoints is an array of objects like this:
     /*
         {
@@ -40,7 +45,7 @@ function displaySiriPointsOnMap(siriPoints, iconFileName) {
         iconUrl: './icons/' + iconFileName,
         iconSize: 30
     });
-    console.log("siriPoints array has size " + siriPoints.length);
+    clog("siriPoints array has size " + siriPoints.length);
     const siriMarkers = siriPoints.map(siriPoint => {
             const coordinates = siriPoint.geometry.coordinates;
             const title = "time:" + siriPoint.properties.time_recorded;
@@ -130,12 +135,12 @@ function askDisplayAll(gtfsTripObject) {
     // mymap was declared as var in script in solution.html
     // so it should be available here
     let tripId = gtfsTripObject.siriTripId;
-    console.log("asked to display trip with siri tripId=" + tripId);
-    console.log("mymap=" + mymap);
+    clog("asked to display trip with siri tripId=" + tripId);
+    clog("mymap=" + mymap);
     const route1 = displayAll(mymap, gtfsTripObject, 'black');
-    console.log("add route to map by tripId...");
+    clog("add route to map by tripId...");
     mapAllRoutesDisplayed.set(tripId, route1);
-    console.log("added. map now contains " + mapAllRoutesDisplayed.size);
+    clog("added. map now contains " + mapAllRoutesDisplayed.size);
 
 }
 
@@ -157,15 +162,17 @@ function displayAll(mymap, tripObject, color) {
 }
 
 function removeTripFromMap(tripId) {
-    removeAll(mapAllRoutesDisplayed.get(tripId));
-    console.log("remove tripId " + tripId);
+    if (tripId) {
+        removeAll(mapAllRoutesDisplayed.get(tripId));
+        clog("remove tripId " + tripId);
+    }
 }
 
 function removeAll(routeObject) {
     if (routeObject) {
-        console.log("removing route " + routeObject);
-        routeObject.route.removeFrom(mymap);   //: polyline,
-        routeObject.stops.forEach(stop => stop.removeFrom(mymap));   //: stopsMarkers,
+        clog("removing route " + routeObject);
+        //routeObject.route.removeFrom(mymap);   //: polyline,
+        //routeObject.stops.forEach(stop => stop.removeFrom(mymap));   //: stopsMarkers,
         routeObject.siri.forEach(point => point.removeFrom(mymap));    //: siriMarkers
     }
 }
@@ -200,9 +207,9 @@ function initMap() {
 
 $(document).ready(function () {
     allTripsFromJs = allTrips; // allTrips arrives from including allTrips.js. In production will arrive from Python analysis of Siri Data
-    console.log("allTripsFromJs initialized to allTrips (content of js file)")
+    clog("allTripsFromJs initialized to allTrips (content of js file)")
     const sampleVehicleId = allTripsFromJs.gtfsTrips[0].vehicleId;
-    console.log("vehicleId of first trip is " + sampleVehicleId);
+    clog("vehicleId of first trip is " + sampleVehicleId);
 
     //mymap = initMap();    // done in solution.html
 
@@ -216,7 +223,7 @@ $(document).ready(function () {
     */
     // moved to solutionWrapper.js
     // const numberOfTrips = allTripsFromJs.gtfsTrips.length;
-    // console.log("gtfs trips: " + numberOfTrips);
+    // clog("gtfs trips: " + numberOfTrips);
     // populateTripsGrid(allTripsFromJs);
 
     //const route1 = displayAll(allTripsFromJs.gtfsTrips[1], 'black');

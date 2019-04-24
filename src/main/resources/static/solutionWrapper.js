@@ -2,6 +2,13 @@
 // initialized in this script, when solutionWrapper.html finished loading...
 var allTripsFromJs;
 
+const log = false;
+function clog(arg) {
+    if (log) {
+        console.log(arg);
+    }
+}
+
 // changes the document by adding more lines to the table in element "all_lines"
 // the new rows come from allTrips - the argument to this function.
 // Called when this page loads.
@@ -25,9 +32,9 @@ function populateTripsGrid(allTrips) {
 
 // argument: tripId : String - the SIRI value of tripId
 function findGtfsTripObject(tripId) {
-    console.log("value of allTripsFromJs is:" + allTripsFromJs);
+    clog("value of allTripsFromJs is:" + allTripsFromJs);
     const gtfsTrip = allTripsFromJs.gtfsTrips.find(gTrip => gTrip.siriTripId == tripId);
-    console.log("found gtfsTrip for tripId=" + tripId);
+    clog("found gtfsTrip for tripId=" + tripId);
     return gtfsTrip;
 }
 
@@ -76,25 +83,28 @@ $(document).ready(function(){
         }
     });
 
+    var previousTripId;
+
     $('#myTable').on('click', '.clickable-row', function(event) {
         $(this).addClass('active').siblings().removeClass('active');
         let tripId = event.currentTarget.children[1].textContent;
-        console.log("solutionWrapper: clicked line with tripId=" + tripId);
+        clog("solutionWrapper: clicked line with tripId=" + tripId);
         let i = iframe.id;
         iframe.contentWindow.askDisplayAll(findGtfsTripObject(tripId));
         //askDisplayAll(findGtfsTripObject(tripId));
-        //removeTripFromMap(previousTripId);
-        //console.log("done removing trip " + previousTripId);
+        iframe.contentWindow.removeTripFromMap(previousTripId);
+        //clog("done removing trip " + previousTripId);
+        previousTripId = tripId;
     });
 
     allTripsFromJs = allTrips; // allTrips arrives from including allTrips.js. In production will arrive from Python analysis of Siri Data
-    console.log("solutionWrapper: allTripsFromJs initialized to allTrips (content of js file)")
+    clog("solutionWrapper: allTripsFromJs initialized to allTrips (content of js file)")
     const sampleVehicleId = allTripsFromJs.gtfsTrips[0].vehicleId;
-    console.log("solutionWrapper: vehicleId of first trip is " + sampleVehicleId);
+    clog("solutionWrapper: vehicleId of first trip is " + sampleVehicleId);
 
     // populate the table with trips
     const numberOfTrips = allTripsFromJs.gtfsTrips.length;
-    console.log("gtfs trips: " + numberOfTrips);
+    clog("gtfs trips: " + numberOfTrips);
     populateTripsGrid(allTripsFromJs);
 
 
