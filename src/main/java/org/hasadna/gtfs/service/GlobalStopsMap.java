@@ -9,9 +9,10 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.Map;
 
-@Component
 public class GlobalStopsMap {
 
+    // moved to Stops.java
+/*
     private static Logger logger = LoggerFactory.getLogger(GlobalStopsMap.class);
 
     @Autowired
@@ -41,4 +42,5 @@ public class GlobalStopsMap {
             logger.info("                     ... Done");
         }
     }
+*/
 }

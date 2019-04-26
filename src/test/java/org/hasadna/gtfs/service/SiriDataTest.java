@@ -235,8 +235,9 @@ public class SiriDataTest {
         List<String> dates = List.of("2019-03-31");//, "2019-04-01", "2019-04-02", "2019-04-03", "2019-04-04", "2019-04-05");
         List<String> routes = List.of("15531");//, "15532");
         dates.forEach(date ->
-            routes.forEach(
-                    routeId -> siriData.dayResults( routeId, date))
+            routes
+                    .map(routeId -> siriData.dayResults( routeId, date))
+                    .forEach(json -> logger.info(json))
                 //routeId -> dayResults( routeId, date))
         );
     }

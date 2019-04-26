@@ -9,6 +9,23 @@ function clog(arg) {
     }
 }
 
+function fetchAllTripsForDay() {
+    const routeId = "15531";
+    const date = "2019-03-31";
+    const url = 'siri/day/' + routeId + "/" + date;
+    $.ajax({
+        url: url
+    })
+        .done(function( json ) {
+            allTripsFromJs.gtfsTrips = JSON.parse(json);
+            clog("request completed, received " +
+                    allTripsFromJs.gtfsTrips.length);
+
+            populateTripsGrid(allTripsFromJs);
+            clog("completed populating grid");
+        });
+}
+
 // changes the document by adding more lines to the table in element "all_lines"
 // the new rows come from allTrips - the argument to this function.
 // Called when this page loads.
@@ -85,27 +102,39 @@ $(document).ready(function(){
 
     var previousTripId;
 
+    // what happens when user clicks on one of the rows in the rips display on the right pane:
     $('#myTable').on('click', '.clickable-row', function(event) {
         $(this).addClass('active').siblings().removeClass('active');
         let tripId = event.currentTarget.children[1].textContent;
         clog("solutionWrapper: clicked line with tripId=" + tripId);
         let i = iframe.id;
         iframe.contentWindow.askDisplayAll(findGtfsTripObject(tripId));
-        //askDisplayAll(findGtfsTripObject(tripId));
         iframe.contentWindow.removeTripFromMap(previousTripId);
-        //clog("done removing trip " + previousTripId);
+        clog("done removing trip " + previousTripId);
         previousTripId = tripId;
     });
 
-    allTripsFromJs = allTrips; // allTrips arrives from including allTrips.js. In production will arrive from Python analysis of Siri Data
-    clog("solutionWrapper: allTripsFromJs initialized to allTrips (content of js file)")
-    const sampleVehicleId = allTripsFromJs.gtfsTrips[0].vehicleId;
-    clog("solutionWrapper: vehicleId of first trip is " + sampleVehicleId);
+    //allTripsFromJs = allTrips; // allTrips arrives from including allTrips.js. In production will arrive from Python analysis of Siri Data
+    // initialize part of allTrips here hard coded:
+    // (temporary code)
+    allTripsFromJs = {
+        gtfsRoute: {
+            routeId: "7716",
+            makat: "xxx",
+            agencyId: "nn",
+            agencyName: "Hebrew Characters",
+            direction: "n",
+            alternative: "ccc"
+        },
 
-    // populate the table with trips
-    const numberOfTrips = allTripsFromJs.gtfsTrips.length;
-    clog("gtfs trips: " + numberOfTrips);
-    populateTripsGrid(allTripsFromJs);
+        timeRange: {
+            date: "2019-03-25"
+        }
+    };
+    // initialize the Trips part bycalling the web App
+    fetchAllTripsForDay(); // fetch json of trips by accessing the Java Spring controller
+    // fetch is asynchronous, so after a few Seconds, when it completes,
+    // populateTripsGrid(allTripsFromJs) will be called.
 
 
 });

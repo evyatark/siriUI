@@ -28,6 +28,8 @@ public class Stops {
     private static Logger logger = LoggerFactory.getLogger(Stops.class);
 
 
+
+
     public Map<String, StopData> readStopDataFromFile() {
 
         Map<String, StopData> map = new HashMap<>();
@@ -65,8 +67,6 @@ public class Stops {
         return (new ReadZipFile()).stopTimesLinesOfTripFromFile1(gtfsZipFileFullPath, tripId);
     }
 
-    @Autowired
-    GlobalStopsMap globalStopsMap;
 
     /**
      * reads from the stops_time.txt file only the lines relevant to specific tripId.
@@ -78,7 +78,7 @@ public class Stops {
     public Map<String, Map<Integer, StopsTimeData>> readStopsTimeDataOfTripFromFile(String tripId, Map<String, Map<Integer, StopsTimeData>> map, String date) {
 
         // read stops.txt file from GTFS zip. return map of stopId to stopData (all data we have about this stop in GTFS)
-        Map<String, StopData> stopsMap = globalStopsMap.getMapForDate(date);
+        Map<String, StopData> stopsMap = this.getMapForDate(date);
 
         logger.info("reading stops_time file, filtering for trip {} ...", tripId);
         Stream<String> lines = readStopTimesFile(tripId);   // get a lazy stream
@@ -139,6 +139,33 @@ public class Stops {
         this.gtfsZipFileDirFullPath = gtfsDir + "/";
         this.gtfsZipFileName = "gtfs" + date + ".zip";
         return readStopsTimeDataOfTripFromFile(trip_id, map, date);
+    }
+
+
+
+
+    Map<String, Map<String, StopData>> stopsMapsForAllDates = new HashMap<>();
+
+    public Map<String, StopData> readStopsMap(final String date) {
+        this.gtfsZipFileDirFullPath = "/home/evyatar/logs/work/2019-03/gtfs/" ;
+        this.gtfsZipFileName = "gtfs" + date + ".zip" ;
+        Map<String, StopData> stopsMap = this.readStopDataFromFile();
+        return stopsMap;
+    }
+
+    public Map<String, StopData> getMapForDate(final String date) {
+        try {
+            logger.info("get stops map for {} ...", date);
+            if (stopsMapsForAllDates.containsKey(date)) {
+                return stopsMapsForAllDates.get(date);
+            } else {
+                stopsMapsForAllDates.put(date, readStopsMap(date));
+                return stopsMapsForAllDates.get(date);
+            }
+        }
+        finally {
+            logger.info("                     ... Done");
+        }
     }
 
 }
