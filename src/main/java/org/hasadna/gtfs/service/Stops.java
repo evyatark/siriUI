@@ -19,10 +19,10 @@ import java.util.stream.Stream;
 @Scope("prototype")
 public class Stops {
 
-    @Value("${gtfsZipFileFullPath:/home/evyatar/logs/work/2019-03/gtfs/}")
+    @Value("${gtfsZipFileFullPath:/home/evyatar/logs/work/2019-04/gtfs/}")
     public String gtfsZipFileDirFullPath = "";
 
-    @Value("${gtfsZipFileName:gtfs2019-03-01.zip}")
+    @Value("${gtfsZipFileName:gtfs2019-04-18.zip}")
     public String gtfsZipFileName = "";
 
     private static Logger logger = LoggerFactory.getLogger(Stops.class);
@@ -47,6 +47,11 @@ public class Stops {
         return (new ReadZipFile()).stopLinesFromFile(gtfsZipFileFullPath).toJavaStream();
     }
 
+
+    private Stream<String> readRoutesFile() {
+        String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        return (new ReadZipFile()).stopLinesFromFile(gtfsZipFileFullPath).toJavaStream();
+    }
 
 
 
@@ -147,7 +152,7 @@ public class Stops {
     Map<String, Map<String, StopData>> stopsMapsForAllDates = new HashMap<>();
 
     public Map<String, StopData> readStopsMap(final String date) {
-        this.gtfsZipFileDirFullPath = "/home/evyatar/logs/work/2019-03/gtfs/" ;
+        this.gtfsZipFileDirFullPath = "/home/evyatar/logs/work/2019-04/gtfs/" ;
         this.gtfsZipFileName = "gtfs" + date + ".zip" ;
         Map<String, StopData> stopsMap = this.readStopDataFromFile();
         return stopsMap;

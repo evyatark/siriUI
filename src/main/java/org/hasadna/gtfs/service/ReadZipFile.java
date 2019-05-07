@@ -1,15 +1,16 @@
 package org.hasadna.gtfs.service;
 
+import io.vavr.collection.List;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StringUtils;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Enumeration;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -130,4 +131,79 @@ public class ReadZipFile {
         return lines;
     }
 
+
+    /****************************
+     *
+     *  Routes.txt
+     *
+     ****************************/
+
+    public io.vavr.collection.Stream<String> routesFromFile(String fileFullPath) {
+        io.vavr.collection.Stream<String> lines = io.vavr.collection.Stream.empty();
+        try {
+            lines = readZipFileV(fileFullPath, "routes.txt")
+                    .collect(io.vavr.collection.Stream.collector());
+        } catch (Exception ex) {
+
+        }
+        return lines;
+    }
+
+    // TODO maybe return a stream, not a list?
+    public List<RouteData> collectRoutes(List<String> onlyTheseRoutes, String gtfsZipFileFullPath) {
+        return routesFromFile(gtfsZipFileFullPath)
+                .filter(line -> onlyTheseRoutes.contains(extractRouteId(line)))
+                .map(line -> new RouteData(extractRouteId(line),extractAgencyCode(line), extractShortName(line), extractFrom(line), extractDestination(line)))
+                .toList();
+    }
+
+    // extracts from lines of routeId
+    private String extractRouteId(String line) {
+        if (StringUtils.isEmpty(line)) {
+            return "";
+        }
+        // route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_color
+        return line.split(",")[0];
+    }
+
+    private String extractAgencyCode(String line) {
+        if (StringUtils.isEmpty(line)) {
+            return "";
+        }
+        // route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_color
+        return line.split(",")[1];
+    }
+
+    private String extractShortName(String line) {
+        if (StringUtils.isEmpty(line)) {
+            return "";
+        }
+        // route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_color
+        return line.split(",")[2];
+    }
+
+    private String extractFrom(String line) {
+        return "unknown";
+    }
+
+    private String extractDestination(String line) {
+        return "unknown";
+    }
+
+
+    public class RouteData {
+        public String routeId;
+        public String agencyCode;
+        public String shortName;
+        public String from;
+        public String to;
+
+        public RouteData(String routeId, String agencyCode, String shortName, String from, String to) {
+            this.routeId = routeId;
+            this.agencyCode = agencyCode;
+            this.shortName = shortName;
+            this.from = from;
+            this.to = to;
+        }
+    }
 }

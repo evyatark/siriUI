@@ -1,12 +1,14 @@
 <html>
 <head>
+    <meta charset="UTF-8">
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
 <!-- jQuery library -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 <!-- Latest compiled JavaScript -->
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
 
-<script type="text/javascript" src="tripsTable.js"></script>
+    <script type="text/javascript" src="globals.js"></script>
+    <script type="text/javascript" src="tripsTable.js"></script>
 <link rel="stylesheet" href="tripsTable.css">
 
 </head>
@@ -23,137 +25,137 @@
                 <th>Missing or Late</th>
             </tr>
         </thead>
-        <tbody>
-                <tr class="clickable warning dropdown-deliverable" data-for="#details_1">
-                    <td>קו 149</td>
-                    <td>30075214_250319</td>
-                    <td>06:14:00</td>
-                    <td><span class="label label-info">יצא בזמן</span></td>
-                    <td>
-                        <div class="progress">
-                            <div class="progress-bar progress-bar-success" style="width: 100%;">
-                                100%
-                            </div>
+        <tbody id="all_trips">
+            <tr class="clickable warning dropdown-deliverable" data-for="#details_1">
+                <td>קו 149</td>
+                <td>30075214_250319</td>
+                <td>06:14:00</td>
+                <td><span class="label label-info">יצא בזמן</span></td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-success" style="width: 100%;">
+                            100%
                         </div>
-                    </td>
-                </tr>
-                <tr style="padding:0">
-                    <td style="padding:0"></td>
-                    <td colspan=2 style="padding:0px;">
-                        <div class="deliverable-infos" id="details_1">
-                            <table class="table table-condensed table-user-content" id="hidden_table_1">
-                                    <tbody>
-                                            <tr>
-                                                <td>Date:</td>
-                                                <td class="right-col">Monday, March 25, 2019</td>
-                                            </tr>
-                                            <tr>
-                                                    <td>Agency:</td>
-                                                    <td class="right-col">אגד</td>
-                                                </tr>
-                                            <tr>
-                                                <td>Line:</td>
-                                                <td class="right-col">149</td>
-                                            </tr>
-                                            <tr>
-                                                <td>Description:</td>
-                                                <td class="right-col">"איזור התעשיה כפר סבא-כפר סבא<->מסוף כרמלית/הכרמל-תל אביב יפו-1#"</td>
-                                            </tr>
-                                            <tr>
-                                                <td>TripId:</td>
-                                                <td class="right-col">30075214_250319</td>
-                                            </tr>
-                                            <tr>
-                                                <td>Route ID:</td>
-                                                <td class="right-col">7716</td>
-                                            </tr>
-                                    
-                                            <tr>
-                                                <td>Original Aimed Departue:</td>
-                                                <td class="right-col">06:14</td>
-                                            </tr>
-                                            <tr>
-                                                <td>Actual Departure:</td>
-                                                <td class="right-col">06:14</td>
-                                            </tr>
-                                            <tr>
-                                                <td>
-                                                    <a href="solutionWrapper.html" class="btn btn-primary" role="button">Investigate this trip on Map</a>
-                                                </td>
-                                                    
-                                            </tr>
-                                        </tbody>
-                            </table>
+                    </div>
+                </td>
+            </tr>
+            <tr style="padding:0">
+                <td style="padding:0"></td>
+                <td colspan=2 style="padding:0px;">
+                    <div class="deliverable-infos" id="details_1">
+                        <table class="table table-condensed table-user-content" id="hidden_table_1">
+                            <tbody>
+                                <tr>
+                                    <td>Date:</td>
+                                    <td class="right-col">Monday, March 25, 2019</td>
+                                </tr>
+                                <tr>
+                                    <td>Agency:</td>
+                                    <td class="right-col">אגד</td>
+                                </tr>
+                                <tr>
+                                    <td>Line:</td>
+                                    <td class="right-col">149</td>
+                                </tr>
+                                <tr>
+                                    <td>Description:</td>
+                                    <td class="right-col">"איזור התעשיה כפר סבא-כפר סבא<->מסוף כרמלית/הכרמל-תל אביב יפו-1#"</td>
+                                </tr>
+                                <tr>
+                                    <td>TripId:</td>
+                                    <td class="right-col">30075214_250319</td>
+                                </tr>
+                                <tr>
+                                    <td>Route ID:</td>
+                                    <td class="right-col">7716</td>
+                                </tr>
+
+                                <tr>
+                                    <td>Original Aimed Departue:</td>
+                                    <td class="right-col">06:14</td>
+                                </tr>
+                                <tr>
+                                    <td>Actual Departure:</td>
+                                    <td class="right-col">06:14</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <a href="solutionWrapper.html" class="btn btn-primary" role="button">Investigate this trip on Map</a>
+                                    </td>
+
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </td>
+                <td style="padding:0"></td>
+                <td style="padding:0"></td>
+            </tr>
+            <tr class="clickable warning dropdown-deliverable" data-for="#details_2">
+                <td>קו 149</td>
+                <td>30075208_250319</td>
+                <td>06:26:00</td>
+                <td><span class="label label-warning">איחור 5 דקות</span></td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-warning" style="width: 80%;">
+                            80%
                         </div>
-                    </td>
-                    <td style="padding:0"></td>
-                    <td style="padding:0"></td>
-                </tr>
-                <tr class="clickable warning dropdown-deliverable" data-for="#details_2">
-                    <td>קו 149</td>
-                    <td>30075208_250319</td>
-                    <td>06:26:00</td>
-                    <td><span class="label label-warning">איחור 5 דקות</span></td>
-                    <td>
-                        <div class="progress">
-                            <div class="progress-bar progress-bar-warning" style="width: 80%;">  
-                                80%
-                            </div>
-                        </div>
-                    </td>                
-                </tr>
-                <tr style="padding:0">
-                    <td style="padding:0"></td>
-                    <td colspan=2 style="padding:0">
-                        <div class="deliverable-infos" id="details_2">
-                            <table class="table table-condensed table-user-content" id="hidden_table_2">
-                                <tbody>
-                                    <tr>
-                                        <td>Date:</td>
-                                        <td class="right-col">Monday, March 25, 2019</td>
+                    </div>
+                </td>
+            </tr>
+            <tr style="padding:0">
+                <td style="padding:0"></td>
+                <td colspan=2 style="padding:0">
+                    <div class="deliverable-infos" id="details_2">
+                        <table class="table table-condensed table-user-content" id="hidden_table_2">
+                            <tbody>
+                                <tr>
+                                    <td>Date:</td>
+                                    <td class="right-col">Monday, March 25, 2019</td>
+                                </tr>
+                                <tr>
+                                        <td>Agency:</td>
+                                        <td class="right-col">אגד</td>
                                     </tr>
-                                    <tr>
-                                            <td>Agency:</td>
-                                            <td class="right-col">אגד</td>
-                                        </tr>
-                                    <tr>
-                                        <td>Line:</td>
-                                        <td class="right-col">149</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Description:</td>
-                                        <td class="right-col">"איזור התעשיה כפר סבא-כפר סבא<->מסוף כרמלית/הכרמל-תל אביב יפו-1#"</td>
-                                    </tr>
-                                    <tr>
-                                        <td>TripId:</td>
-                                        <td class="right-col">30075208_250319</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Route ID:</td>
-                                        <td class="right-col">7716</td>
-                                    </tr>
-                            
-                                    <tr>
-                                        <td>Original Aimed Departue:</td>
-                                        <td class="right-col">06:26</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Actual Departure:</td>
-                                        <td class="right-col">06:31  [ 5 minutes delay ]</td>
-                                    </tr>
-                                    <tr>
-                                        <td>
-                                            <a href="solutionWrapper.html" class="btn btn-primary" role="button">Investigate this trip on Map</a>
-                                        </td>
-                                            
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </td>
-                    <td style="padding:0"></td>
-                    <td style="padding:0"></td>
-                </tr>
+                                <tr>
+                                    <td>Line:</td>
+                                    <td class="right-col">149</td>
+                                </tr>
+                                <tr>
+                                    <td>Description:</td>
+                                    <td class="right-col">"איזור התעשיה כפר סבא-כפר סבא<->מסוף כרמלית/הכרמל-תל אביב יפו-1#"</td>
+                                </tr>
+                                <tr>
+                                    <td>TripId:</td>
+                                    <td class="right-col">30075208_250319</td>
+                                </tr>
+                                <tr>
+                                    <td>Route ID:</td>
+                                    <td class="right-col">7716</td>
+                                </tr>
+
+                                <tr>
+                                    <td>Original Aimed Departue:</td>
+                                    <td class="right-col">06:26</td>
+                                </tr>
+                                <tr>
+                                    <td>Actual Departure:</td>
+                                    <td class="right-col">06:31  [ 5 minutes delay ]</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <a href="solutionWrapper.html" class="btn btn-primary" role="button">Investigate this trip on Map</a>
+                                    </td>
+
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </td>
+                <td style="padding:0"></td>
+                <td style="padding:0"></td>
+            </tr>
 
                 <tr class="clickable warning dropdown-deliverable" data-for="#details_3">
                     <td>קו 149</td>

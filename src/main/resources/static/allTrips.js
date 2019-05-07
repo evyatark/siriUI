@@ -1,7 +1,7 @@
 var allTrips = 
 {
 	"gtfsRoute": {
-		"routeId": "7716",
+		"routeId": "10812",
 		"makat": "xxx",
 		"agencyId": "nn",
 		"agencyName": "Hebrew Characters",
@@ -17,18 +17,18 @@ var allTrips =
 	"gtfsTrips": 
 	[
 		{
-		  "routeId": "15531",
-		  "shortName": "420",
-		  "agencyCode": "16",
-		  "agencyName": "Superbus",
-		  "dayOfWeek": "SUNDAY",
-		  "date": "2019-03-31",
+		  "routeId": "10812",
+		  "shortName": "68",
+		  "agencyCode": "3",
+		  "agencyName": "Egged",
+		  "dayOfWeek": "THURSDAY",
+		  "date": "2019-04-18",
 		  "originalAimedDeparture": "05:20",
 		  "gtfsETA": null,
 		  "gtfsTripId": null,
 		  "stopsTimeData": null,
-		  "siriTripId": "37203669",
-		  "vehicleId": "3175078",
+		  "siriTripId": "37739283",
+		  "vehicleId": "7714569",
 		  "siri1": null,
 		  "siri": {
 			  "type": "FeatureCollection",

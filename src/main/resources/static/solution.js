@@ -2,7 +2,7 @@
 var mapAllRoutesDisplayed = new Map();
 var allTripsFromJs ; // initialized in solution.html ready function, to content of allTrips
 
-const log = false;
+const log = true;
 function clog(arg) {
     if (log) {
         console.log(arg);

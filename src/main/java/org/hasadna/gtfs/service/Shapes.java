@@ -19,7 +19,7 @@ public class Shapes {
 
     private static Logger logger = LoggerFactory.getLogger(Shapes.class);
 
-    private final String GTFS_DIR = "/home/evyatar/logs/work/work 2019-01-27/gtfs2019-01-27/";
+    private final String GTFS_DIR = "/home/evyatar/logs/work/work 2019-04-18/gtfs2019-04-18/";
     private final String TRIPS_FILE = GTFS_DIR + "trips.txt";
     private final String SHAPES_FILE = GTFS_DIR + "shapes.txt";
 

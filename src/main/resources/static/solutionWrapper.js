@@ -2,16 +2,18 @@
 // initialized in this script, when solutionWrapper.html finished loading...
 var allTripsFromJs;
 
-const log = false;
+// this var is initialized in selectLine.js according to the grid line selected by the user
+var selectedRouteId ;
+
+const log = true;
 function clog(arg) {
     if (log) {
         console.log(arg);
     }
 }
 
-function fetchAllTripsForDay() {
-    const routeId = "15531";
-    const date = "2019-03-31";
+// expects date as a String in format "2019-03-31"
+function fetchAllTripsForDay(routeId, date) {
     const url = 'siri/day/' + routeId + "/" + date;
     $.ajax({
         url: url
@@ -131,8 +133,14 @@ $(document).ready(function(){
             date: "2019-03-25"
         }
     };
-    // initialize the Trips part bycalling the web App
-    fetchAllTripsForDay(); // fetch json of trips by accessing the Java Spring controller
+    // initialize the Trips part by calling the web App
+    selectedRouteId = localStorage.getItem("selectedRouteId");
+    clog("selectedRouteId=" + selectedRouteId);
+    selectedDate = localStorage.getItem("selectedDate");
+    clog("selectedDate=" + selectedDate);
+    //fetchAllTripsForDay("10812", "2019-04-18");
+    fetchAllTripsForDay(selectedRouteId, selectedDate);
+    // fetch json of trips by accessing the Java Spring controller
     // fetch is asynchronous, so after a few Seconds, when it completes,
     // populateTripsGrid(allTripsFromJs) will be called.
 

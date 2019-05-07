@@ -1,20 +1,32 @@
 package org.hasadna.gtfs.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import org.hasadna.gtfs.service.Routes;
 import org.hasadna.gtfs.service.Shapes;
 import org.hasadna.gtfs.service.SiriData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 public class GtfsController {
+
+    private static Logger logger = LoggerFactory.getLogger(GtfsController.class);
 
     @Autowired
     Shapes shapesService;
 
     @Autowired
     SiriData siriData;
+
+    @Autowired
+    Routes gtfsRoutes;
+
 
     @GetMapping("shape/{routeId}")
     public String retrieveShapeOfRouteAsJson(@PathVariable String routeId) {
@@ -95,6 +107,135 @@ public class GtfsController {
     @GetMapping("siri/day/{routeId}/{date}")
     public String retrieveShapeOfRouteAsJson(@PathVariable String routeId, @PathVariable String date) {
         return siriData.dayResults(routeId, date);
+    }
+
+    @GetMapping("gtfs/lines/{date}")
+    public String retrieveAllLinesByDate(@PathVariable String date) {
+        String json = null;
+        try {
+            logger.warn("finding all GTFS routes for date {} ...", date);
+            json = gtfsRoutes.allRoutesAsJson(date);
+        } catch (JsonProcessingException e) {
+            logger.error("exception while converting to JSON", e);
+            return "[]";
+        }
+        return json;
+    }
+
+    @GetMapping("gtfs/trips/{date}/{routeId}")
+    public String retrieveAllLinesByDate(@PathVariable String date, @PathVariable String routeId) {
+        String json = null;
+        try {
+            logger.warn("finding all GTFS routes for date {} and routeId {} ...", date, routeId);
+            json = generateSampleListOfTripData(date, routeId);
+        } catch (Exception e) { //JsonProcessingException e) {
+            logger.error("exception while converting to JSON", e);
+            return "[]";
+        }
+        return json;
+    }
+
+    private String generateSampleListOfTripData(String date, String routeId) {
+        return "[" +
+                "{" +
+                "   \"routeId\": \"111\"," +
+                "   \"shortName\": \"111\"," +
+                "   \"agencyCode\": \"111\"," +
+                "   \"agencyName\": \"111\"," +
+                "   \"dayOfWeek\": \"111\"," +
+                "   \"date\": \"111\"," +
+                "   \"originalAimedDeparture\": \"111\"," +
+                "   \"gtfsETA\": \"111\"," +
+                "   \"gtfsTripId\": \"111\"," +
+                "   \"siriTripId\": \"111\"," +
+                "   \"description\": \"111\"," +
+                "   \"status\": \"111\"," +
+                "   \"progress\": \"111\"," +
+                "   \"actualDeparture\": \"111\"" +
+                "}, " +
+                "{" +
+                "   \"routeId\": \"222\"," +
+                "   \"shortName\": \"222\"," +
+                "   \"agencyCode\": \"222\"," +
+                "   \"agencyName\": \"222\"," +
+                "   \"dayOfWeek\": \"222\"," +
+                "   \"date\": \"222\"," +
+                "   \"originalAimedDeparture\": \"222\"," +
+                "   \"gtfsETA\": \"222\"," +
+                "   \"gtfsTripId\": \"222\"," +
+                "   \"siriTripId\": \"222\"," +
+                "   \"description\": \"222\"," +
+                "   \"status\": \"222\"," +
+                "   \"progress\": \"222\"," +
+                "   \"actualDeparture\": \"222\"" +
+                "} " +
+                "]";
+    }
+
+    @GetMapping("gtfs/lines/old/{date}")
+    public String retrieveAllLinesByDate1(@PathVariable String date) {
+        logger.warn("finding siri bus lines for {} ...", date);
+        List<String> routeIds = siriData.findAllBusLines(date);
+        logger.warn("  Done");
+        String json = null;
+        try {
+            logger.warn("finding GTFS routes for {} route IDs...", routeIds.size());
+            json = gtfsRoutes.routesAsJson(io.vavr.collection.List.ofAll(routeIds), date);
+        } catch (JsonProcessingException e) {
+            logger.error("exception while converting to JSON", e);
+            return "[]";
+        }
+
+        // date in format 2019-03-31
+        String json1 = "        [\n" +
+                "            {\n" +
+                "                \"agency\": \"Egged\",\n" +
+                "                \"shortName\": \"480\",\n" +
+                "                \"routeId\": \"15531\",\n" +
+                "                \"from\": \"ירושלים\",\n" +
+                "                \"to\": \"תל אביב\"\n" +
+                "            },\n" +
+                "            {\n" +
+                "                \"agency\": \"Superbus\",\n" +
+                "                \"shortName\": \"420\",\n" +
+                "                \"routeId\": \"15531\",\n" +
+                "                \"from\": \"Jerusalem\",\n" +
+                "                \"to\": \"Beit Shemesh\"\n" +
+                "            },\n" +
+                "            {\n" +
+                "                \"agency\": \"Superbus\",\n" +
+                "                \"shortName\": \"420\",\n" +
+                "                \"routeId\": \"15532\",\n" +
+                "                \"from\": \"Beit Shemesh\",\n" +
+                "                \"to\": \"Jerusalem\"\n" +
+                "            }\n" +
+                "        ]\n";
+        /*
+        [
+            {
+                "agency": "Egged",
+                "shortName": "480",
+                "routeId": "15531",
+                "from": "Jerusalem",
+                "to": "TelAviv"
+            },
+            {
+                "agency": "Superbus",
+                "shortName": "420",
+                "routeId": "15531",
+                "from": "Jerusalem",
+                "to": "Beit Shemesh"
+            },
+            {
+                "agency": "Superbus",
+                "shortName": "420",
+                "routeId": "15532",
+                "from": "Beit Shemesh",
+                "to": "Jerusalem"
+            }
+        ]
+        */
+        return json;
     }
 
 }

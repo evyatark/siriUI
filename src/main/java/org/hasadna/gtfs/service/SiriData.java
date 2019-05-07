@@ -16,6 +16,7 @@ import java.nio.file.Paths;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Component
@@ -153,6 +154,7 @@ public class SiriData {
         ]
      */
     public String dayResults(final String routeId, String date) {
+        logger.warn("day results: routeId={}, date={}", routeId, date);
         DayOfWeek dayOfWeek = LocalDate.parse(date).getDayOfWeek();
         final String ROUTE_ID = routeId;
         //ist<String> names = List.range(0, 1).map(i -> "/home/evyatar/logs/data/siri_rt_data." + date + "." + i + ".log.gz");  // 2019-04-04
@@ -216,7 +218,7 @@ public class SiriData {
                 java.util.Map<String, java.util.Map<Integer, StopsTimeData>> map = new HashMap<>();
                 logger.debug("searching in GTFS tripId={}, tripData={}", tripData.siriTripId, tripData);
                 java.util.Map<String, java.util.Map<Integer, StopsTimeData>> all =
-                        stops.generateStopsMap(tripData.siriTripId, date, "/home/evyatar/logs/work/2019-03/gtfs", map);
+                        stops.generateStopsMap(tripData.siriTripId, date, "/home/evyatar/logs/work/2019-04/gtfs", map);
                 logger.debug("found {} stops for this trip", all.keySet().size());
                 tripData.stopsTimeData = all.get(tripData.siriTripId);
             });
@@ -261,6 +263,30 @@ public class SiriData {
     }
 
 
+
+    public java.util.List<String> findAllBusLines(String date) {
+        List<String> names = List.range(0, 20).map(i -> "/home/evyatar/logs/data/siri_rt_data." + date + "." + i + ".log.gz");  // 2019-03-31
+
+        logger.warn("reading {} siri results log files for date {}", names.size(), date);
+
+        // calc set of routeIds that appeared in Siri results on that day
+        Stream<String> routes = this
+                .readSeveralGzipFiles(names.toJavaArray(String.class))
+                .filter(line -> line.length() > 1)
+                .filter(line -> !line.endsWith(",0,0"))
+                .map(line -> extractRouteId(line))
+                .distinct();
+        java.util.List<String> routeIds = routes.collect(Collectors.toList());
+        return routeIds;
+    }
+
+//    private String extractFromLine(String line) {
+//        extractRouteId(line);
+//        //extractShortName(line);
+//        //agencyNames.getOrElse(extractAgency(line), "unknown");
+//        ext
+//    }
+
     static Map<String, String> agencyNames = io.vavr.collection.HashMap.of(
                 "16", "Superbus",
                 "3", "Egged",
@@ -271,7 +297,7 @@ public class SiriData {
                 "4", "EggedTaabura",
                 "31", "DanBadarom",
                 "14", "Nativ Express",
-                "32", "DanBeerSheva").put("30", "DanBatzafon");
+                "32", "DanBeerSheva").put("30", "DanBatzafon").put("2", "Trains");
 
     private String agencyNameFromCode(String agencyCode) {
         return agencyNames.getOrElse(agencyCode, agencyCode);
