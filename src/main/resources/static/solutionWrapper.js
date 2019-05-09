@@ -5,12 +5,6 @@ var allTripsFromJs;
 // this var is initialized in selectLine.js according to the grid line selected by the user
 var selectedRouteId ;
 
-const log = true;
-function clog(arg) {
-    if (log) {
-        console.log(arg);
-    }
-}
 
 // expects date as a String in format "2019-03-31"
 function fetchAllTripsForDay(routeId, date) {
@@ -57,18 +51,23 @@ function findGtfsTripObject(tripId) {
     return gtfsTrip;
 }
 
+
 function populateRouteHeader(selectedRouteId, selectedDate) {
+    const routeData = JSON.parse( sessionStorage.getItem("selectedRoute"));
+    const dayOfWeek = dayOfWeek1(selectedDate);
     $('#routeHeader')[0].innerHTML =
-        '<p><b>Route ' + selectedRouteId + '</b> description from to <strong> agency and line name\n' +
-        '                        ' + selectedDate +' </strong>\n' +
-        '                    </p>';
+        '<p>' + dayOfWeek + ' ' + selectedDate +  //' </p>\n' +
+        '   <b>Route ' + selectedRouteId +  ',</b> ' + agencyCodeToName[routeData.agencyCode] + ' line ' + routeData.shortName + '</p>' +
+        '<p><b style="background:#ccc; color:red;">FROM : </b>' + routeData.from + ' ' +
+        '<b style="background:#ccc; color:red;">TO : </b>' + routeData.to + '</p>';
+    let fromTo = '</b> from <span dir="rtl">' + routeData.from + '</span> to <span dir="rtl"></span>';
 }
 
 function populateBusHeader(selectedRouteId, selectedDate) {
+    const routeData = JSON.parse(sessionStorage.getItem("selectedRoute"));
     $('#busHeader')[0].innerHTML =
-        '<h4><strong> Agency lineName Route ' + selectedRouteId + ' from From to To</strong></h4>';
-    // $('#busHeader.h4.strong').innerText =
-    //     'Agency lineName Route ' + selectedRouteId + ' from From to To';
+        '<h4><strong> ' + agencyCodeToName[routeData.agencyCode] + ', line ' + routeData.shortName + ', route ' + routeData.routeId + ' </strong></h4>';
+    let fromTo = ' from <span dir="rtl">' + routeData.from + '</span> to <span dir="rtl">' + routeData.to + '</span>';
 
 }
 

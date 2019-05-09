@@ -94,7 +94,7 @@ function populateTripsGrid(routeId, allTripsOfDay, date) {
             '                <td style="padding:0"></td>\n' +
             '                <td style="padding:0"></td>\n' +
             '            </tr>' ;
-        innerHTML = tr1 + tr2 + innerHTML;
+        innerHTML = innerHTML + tr1 + tr2 ;
     }
     tableElement.innerHTML = innerHTML;
     prepareHide();

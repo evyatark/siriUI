@@ -15,19 +15,7 @@ function clog(arg) {
 }
 */
 
-const agencyCodeToName = {
-    "16": "Superbus",
-    "3": "Egged",
-    "5": "Dan",
-    "18": "Kavim",
-    "15": "Metropolin",
-    "25": "Afikim",
-    "4": "EggedTaabura",
-    "31": "DanBadarom",
-    "14": "Nativ Express",
-    "32": "DanBeerSheva",
-    "30": "DanBatzafon"
-};
+
 
 // builds the HTML table under the HTML element with id 'all_lines'
 function populateLinesGrid(allLinesOfDay) {
@@ -45,7 +33,7 @@ function populateLinesGrid(allLinesOfDay) {
         let agency = agencyCodeToName[lineDetails.agencyCode] || lineDetails.agencyCode ;
         //if (agency == undefined) {agency = lineDetails.agencyCode;}
         // generate td
-        let td = "<tr class=\"clickable-row\"><td>" + agency + "</td><td>" + shortName + "</td><td>" + routeId + "</td><td>" + to + "</td><td>" + from + "</td></tr>";
+        let td = "<tr class=\"clickable-row\"><td>" + agency + "</td><td>" + shortName + "</td><td>" + routeId + "</td><td>" + from + "</td><td>" + to + "</td></tr>";
         innerHTML = td + innerHTML;
     }
     tableElement.innerHTML = innerHTML;
@@ -70,6 +58,7 @@ function fetchAllLinesForDay(date) {
 
             populateLinesGrid(allLinesOfDay);
             clog("completed populating grid");
+            sessionStorage.setItem("allRoutesOfDay", json); // note! we store the Json, not the array!
         });
 }
 
@@ -129,8 +118,13 @@ $(document).ready(function () {
         clog("selected: routeId=" + routeId + ", line name=" + shortPublishedName);
         selectedRouteId = routeId;
         sessionStorage.setItem("selectedRouteId", routeId);
+        const arr = JSON.parse( sessionStorage.getItem("allRoutesOfDay"));   // array of {routeId, shortName, to, from, agencyCode
+        const selectedItems = arr.filter(item => routeId == item.routeId);
+        if (selectedItems != undefined && selectedItems.length > 0) {
+            sessionStorage.setItem("selectedRoute", JSON.stringify(selectedItems[0]));
+        }
     });
 
-    console.log('############### '+selectedDate);
+    console.log('############### '+ selectedDate);
     fetchAllLinesForDay(selectedDate); //"2019-04-18");
 });

@@ -1,147 +1,61 @@
-<!--
-<link href="//netdna.bootstrapcdn.com/bootstrap/3.1.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
-<script src="//netdna.bootstrapcdn.com/bootstrap/3.1.0/js/bootstrap.min.js"></script>
-<script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
----- Include the above in your HEAD tag ---------->
-
 <html>
 <head>
     <meta charset="UTF-8">
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
-<!-- jQuery library -->
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-<!-- Latest compiled JavaScript -->
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
 
     <script type="text/javascript" src="globals.js"></script>
     <script type="text/javascript" src="selectLine.js"></script>
-<link rel="stylesheet" href="selectLine.css">
-
+    <link rel="stylesheet" href="selectLine.css">
 </head>
 <body>
 
-<div class="container">
-    <h3>Select Line and Direction</h3>
-    <hr>
-    <p>Use the filter button to minimize possibilities</p>
-    <div class="row">
-        <div class="panel panel-primary filterable">
-            <div class="panel-heading">
-                <h3 class="panel-title">קווי אוטובוס</h3>
-                <div class="pull-right">
-                    <button class="btn btn-default btn-xs btn-filter"><span class="glyphicon glyphicon-filter"></span> Filter</button>
+    <div class="container">
+        <h3>Select Line and Direction</h3>
+        <hr>
+        <p>Use the filter button to minimize possibilities</p>
+        <div class="row">
+            <div class="panel panel-primary filterable">
+                <div class="panel-heading">
+                    <h3 class="panel-title">קווי אוטובוס</h3>
+                    <div class="pull-right">
+                        <button class="btn btn-default btn-xs btn-filter"><span class="glyphicon glyphicon-filter"></span> Filter</button>
+                    </div>
                 </div>
-            </div>
-            <table id="myTable" class="table table-hover">
-                <thead>
-                    <tr class="filters">
-                        <th><input type="text" class="form-control" placeholder="Agency" disabled></th>
-                        <th><input type="text" class="form-control" placeholder="Line #" disabled></th>
-                        <th><input type="text" class="form-control" placeholder="Route ID" disabled></th>
-                        <th><input type="text" class="form-control" placeholder="From" disabled></th>
-                        <th><input type="text" class="form-control" placeholder="Destination" disabled></th>
-                    </tr>
-                </thead>
-                <tbody id="all_lines">
-                <!--    now populated by REST request to server
-                    <tr class="clickable-row">
-                        <td>420</td>
-                        <td>סופרבוס</td>
-                        <td>ירושלים</td>
-                        <td>בית שמש</td>
-                    </tr>
-                    <tr class="clickable-row">
+                <table id="myTable" class="table table-hover">
+                    <thead>
+                        <tr class="filters">
+                            <th><input type="text" class="form-control" placeholder="Agency" disabled></th>
+                            <th><input type="text" class="form-control" placeholder="Line #" disabled></th>
+                            <th><input type="text" class="form-control" placeholder="Route ID" disabled></th>
+                            <th><input type="text" class="form-control" placeholder="From" disabled></th>
+                            <th><input type="text" class="form-control" placeholder="Destination" disabled></th>
+                        </tr>
+                    </thead>
+                    <tbody id="all_lines">
+                    <!--    will be populated by REST request to server with tr elements such as this one:
+                        <tr class="clickable-row">
                             <td>420</td>
                             <td>סופרבוס</td>
-                            <td>בית שמש</td>
-                            <td>ירושלים</td>
-                        </tr>
-                        <tr class="clickable-row">
-                        <td>480</td>
-                        <td>אגד</td>
-                        <td>תל אביב</td>
-                        <td>ירושלים</td>
-                    </tr>
-                    <tr class="clickable-row">
-                            <td>480</td>
-                            <td>אגד</td>
-                            <td>ירושלים</td>
-                            <td>תל אביב</td>
-                        </tr>
-                        <tr class="clickable-row">
-                        <td>417</td>
-                        <td>אגד</td>
-                        <td>ירושלים</td>
-                        <td>בית שמש</td>
-                    </tr>
-                    <tr class="clickable-row">
-                            <td>417</td>
-                            <td>אגד</td>
-                            <td>בית שמש</td>
-                            <td>ירושלים</td>
-                        </tr>
-                        <tr class="active clickable-row">
-                            <td>149</td>
-                            <td>מטרופולין</td>
-                            <td>כפר סבא</td>
-                            <td>תל אביב</td>
-                        </tr>    
-                        <tr class="clickable-row">
-                                <td>149</td>
-                                <td>מטרופולין</td>
-                                <td>תל אביב</td>
-                                <td>כפר סבא</td>
-                            </tr>    
-                        <tr class="clickable-row">
-                            <td>415</td>
-                            <td>סופרבוס</td>
                             <td>ירושלים</td>
                             <td>בית שמש</td>
                         </tr>
-                        <tr class="clickable-row">
-                                <td>411</td>
-                                <td>סופרבוס</td>
-                                <td>תל אביב</td>
-                                <td>בית שמש</td>
-                            </tr>
-                            <tr class="clickable-row">
-                                    <td>412</td>
-                                    <td>אגד</td>
-                                    <td>תל אביב</td>
-                                    <td>בית שמש</td>
-                                    </tr>
-                                <tr class="clickable-row">
-                                        <td>139</td>
-                                        <td>קוים</td>
-                                        <td>ביתר עילית</td>
-                                        <td>בני ברק</td>
-                                    </tr>
-                                    <tr class="clickable-row">
-                                            <td>497</td>
-                                            <td>סופרבוס</td>
-                                            <td>בית שמש</td>
-                                            <td>בני ברק</td>
-                                        </tr>
-                                        <tr class="clickable-row">
-                                                <td>597</td>
-                                                <td>סופרבוס</td>
-                                                <td>בית שמש</td>
-                                                <td>בני ברק</td>
-                                            </tr>  -->
-                </tbody>
-            </table>
+                     -->
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-    <hr>
-    <div class="form-group"> 
-        <a href="tripsTable.html" class="btn btn-primary" role="button">Display Report</a>
-        <a href="selectDate.html" class="btn btn-warning" role="button">Investigate Another Route</a>
+        <hr>
+        <div class="form-group">
+            <a href="tripsTable.html" class="btn btn-primary" role="button">Display Report</a>
+            <a href="selectDate.html" class="btn btn-warning" role="button">Investigate Another Route</a>
+
+        </div>
+        <hr>
+        <p>Inspired by this <a href="https://bootsnipp.com/snippets/8G2Q">snippet</a></p>
 
     </div>
-    <hr>
-    <p>Inspired by this <a href="https://bootsnipp.com/snippets/8G2Q">snippet</a></p>
-
-</div>
 
 </body>
 </html>

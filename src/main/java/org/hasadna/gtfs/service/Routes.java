@@ -74,8 +74,17 @@ public class Routes {
     public java.util.List<RouteData> collectAllRoutes(String gtfsZipFileFullPath) {
         return (new ReadZipFile()).routesFromFile(gtfsZipFileFullPath)
                 .filter(line -> !"2".equals(extractAgencyCode(line)))   // 2 = Trains
-                .map(line -> new RouteData(extractRouteId(line),extractAgencyCode(line), extractShortName(line), extractFrom(line), extractDestination(line)))
+                .map(line -> createRouteData(line))
                 .toJavaList();
+    }
+
+    private RouteData createRouteData(String line) {
+        String routeId = extractRouteId(line);
+        String agency = extractAgencyCode(line);
+        String shortName = extractShortName(line);
+        String from = extractFrom(line);
+        String to =  extractDestination(line);
+        return new RouteData(routeId, agency, shortName, from, to);
     }
 
     // extracts from lines of routeId
@@ -104,11 +113,11 @@ public class Routes {
     }
 
     private String extractFrom(String line) {
-        return extractLongName(line)[1];
+        return extractLongName(line)[0];
     }
 
     private String extractDestination(String line) {
-        return extractLongName(line)[0];
+        return extractLongName(line)[1];
     }
 
     private String[] extractLongName(String line) {

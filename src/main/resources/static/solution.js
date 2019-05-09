@@ -141,7 +141,8 @@ function askDisplayAll(gtfsTripObject) {
     clog("add route to map by tripId...");
     mapAllRoutesDisplayed.set(tripId, route1);
     clog("added. map now contains " + mapAllRoutesDisplayed.size);
-
+    mymap.setView(gtfsTripObject.siri.features[0].geometry.coordinates, 12);
+    //mymap.setView( [31.738494, 34.995529], 14);
 }
 
 function displayAll(mymap, tripObject, color) {
