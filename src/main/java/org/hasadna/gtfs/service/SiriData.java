@@ -8,6 +8,7 @@ import org.hasadna.gtfs.entity.StopsTimeData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
@@ -153,6 +154,7 @@ public class SiriData {
             ...
         ]
      */
+    @Cacheable("default")
     public String dayResults(final String routeId, String date) {
         logger.warn("day results: routeId={}, date={}", routeId, date);
         DayOfWeek dayOfWeek = LocalDate.parse(date).getDayOfWeek();
@@ -184,6 +186,7 @@ public class SiriData {
         try {
             logger.info("building json for all trips...");
             json = buildJson(trips, dayOfWeek, date, routeId);
+            // TODO call createReport(trips, dayOfWeek, date, routeId);
         } catch (JsonProcessingException e) {
             logger.error("", e);
         }

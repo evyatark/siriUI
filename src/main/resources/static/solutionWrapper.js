@@ -57,6 +57,22 @@ function findGtfsTripObject(tripId) {
     return gtfsTrip;
 }
 
+function populateRouteHeader(selectedRouteId, selectedDate) {
+    $('#routeHeader')[0].innerHTML =
+        '<p><b>Route ' + selectedRouteId + '</b> description from to <strong> agency and line name\n' +
+        '                        ' + selectedDate +' </strong>\n' +
+        '                    </p>';
+}
+
+function populateBusHeader(selectedRouteId, selectedDate) {
+    $('#busHeader')[0].innerHTML =
+        '<h4><strong> Agency lineName Route ' + selectedRouteId + ' from From to To</strong></h4>';
+    // $('#busHeader.h4.strong').innerText =
+    //     'Agency lineName Route ' + selectedRouteId + ' from From to To';
+
+}
+
+
 /*
 Please consider that the JS part isn't production ready at all, I just code it to show the concept of merging filters and titles together !
 */
@@ -134,15 +150,16 @@ $(document).ready(function(){
         }
     };
     // initialize the Trips part by calling the web App
-    selectedRouteId = localStorage.getItem("selectedRouteId");
+    selectedRouteId = sessionStorage.getItem("selectedRouteId");
     clog("selectedRouteId=" + selectedRouteId);
-    selectedDate = localStorage.getItem("selectedDate");
+    selectedDate = sessionStorage.getItem("selectedDate");
     clog("selectedDate=" + selectedDate);
     //fetchAllTripsForDay("10812", "2019-04-18");
     fetchAllTripsForDay(selectedRouteId, selectedDate);
     // fetch json of trips by accessing the Java Spring controller
     // fetch is asynchronous, so after a few Seconds, when it completes,
     // populateTripsGrid(allTripsFromJs) will be called.
-
+    populateBusHeader(selectedRouteId, selectedDate);
+    populateRouteHeader(selectedRouteId, selectedDate);
 
 });

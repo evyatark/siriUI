@@ -30,6 +30,7 @@ public class Routes {
     public String gtfsZipFileName = "";
 
 
+    @Cacheable("default")
     public String allRoutesAsJson(String date) throws JsonProcessingException {
         this.gtfsZipFileName = "gtfs" + date + ".zip";
         String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
@@ -46,6 +47,7 @@ public class Routes {
         return json;
     }
 
+    @Cacheable("default")
     public String routesAsJson(List<String> onlyTheseRoutes, String date) throws JsonProcessingException {
 
         this.gtfsZipFileName = "gtfs" + date + ".zip";
@@ -102,11 +104,11 @@ public class Routes {
     }
 
     private String extractFrom(String line) {
-        return extractLongName(line)[0];
+        return extractLongName(line)[1];
     }
 
     private String extractDestination(String line) {
-        return extractLongName(line)[1];
+        return extractLongName(line)[0];
     }
 
     private String[] extractLongName(String line) {

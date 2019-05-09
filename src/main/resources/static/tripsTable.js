@@ -99,6 +99,7 @@ function populateTripsGrid(routeId, allTripsOfDay, date) {
     tableElement.innerHTML = innerHTML;
     prepareHide();
     //clog("completed populating");
+    retrieveReport(date, routeId);
 }
 
 function prepareHide() {
@@ -115,6 +116,22 @@ function prepareHide() {
 
 }
 
+function retrieveReport(date, routeId) {
+    clog("retrieveReport");
+}
+
+function whenReceivingTrips( json ) {
+    clog("request completed, parsing json");
+    clog(json.substring(0, 400));
+    let allTripsOfDay = JSON.parse(json);
+    clog("request completed, received " + allTripsOfDay.length);
+
+    populateTripsGrid(selectedRouteId, allTripsOfDay, selectedDate);
+    clog("completed populating grid");
+
+
+}
+
 function fetchAllTripsForDayAndLine(date, routeId) {
     clog("sending request for " + date + " and " + routeId);
 
@@ -122,25 +139,16 @@ function fetchAllTripsForDayAndLine(date, routeId) {
     const url = 'siri/day/' + routeId + "/" + date;
     $.ajax({
         url: url
-    })
-        .done(function( json ) {
-            clog("request completed, parsing json");
-            clog(json.substring(0, 400));
-            let allTripsOfDay = JSON.parse(json);
-            clog("request completed, received " + allTripsOfDay.length);
-
-            populateTripsGrid(routeId, allTripsOfDay, date);
-            clog("completed populating grid");
-        });
+    }).done(whenReceivingTrips);
 }
 
 $(document).ready(function() {
     prepareHide();
     // initialize the Trips part by calling the web App
-    selectedRouteId = localStorage.getItem("selectedRouteId");
+    selectedRouteId = sessionStorage.getItem("selectedRouteId");
     clog("selectedRouteId=" + selectedRouteId);
 
-    selectedDate = localStorage.getItem("selectedDate");
+    selectedDate = sessionStorage.getItem("selectedDate");
     clog('selectedDate='+selectedDate);
     fetchAllTripsForDayAndLine(selectedDate, selectedRouteId); //"2019-04-18");
 });

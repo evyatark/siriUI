@@ -56,7 +56,7 @@
                 var deger = $(this).val();
                 let selectedDate = deger;
                 selectedDate = reverseDate(selectedDate);
-                localStorage.setItem("selectedDate", selectedDate);
+                sessionStorage.setItem("selectedDate", selectedDate);
                 console.log('set selectedDate=' + selectedDate);
                 $("h3").html("<font color=green>" + deger + "</font>");
             });      

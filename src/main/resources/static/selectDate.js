@@ -50,7 +50,7 @@ $(document).ready(function () {
     date_input.change(function () {
         var deger = $(this).val();
         selectedDate = deger;
-        localStorage.setItem("selectedDate", selectedDate);
+        sessionStorage.setItem("selectedDate", selectedDate);
         console.log('###########');
         $("h3").html("<font color=green>" + deger + "</font>");
     });

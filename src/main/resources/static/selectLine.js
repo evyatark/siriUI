@@ -75,7 +75,7 @@ function fetchAllLinesForDay(date) {
 
 $(document).ready(function () {
 
-    selectedDate = localStorage.getItem("selectedDate");
+    selectedDate = sessionStorage.getItem("selectedDate");
     console.log('############### '+selectedDate);
 
     $('.filterable .btn-filter').click(function () {
@@ -128,7 +128,7 @@ $(document).ready(function () {
         let routeId = activeRow.cells[2].innerText;
         clog("selected: routeId=" + routeId + ", line name=" + shortPublishedName);
         selectedRouteId = routeId;
-        localStorage.setItem("selectedRouteId", routeId);
+        sessionStorage.setItem("selectedRouteId", routeId);
     });
 
     console.log('############### '+selectedDate);
