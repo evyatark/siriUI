@@ -128,8 +128,17 @@ function whenReceivingTrips( json ) {
 
     populateTripsGrid(selectedRouteId, allTripsOfDay, selectedDate);
     clog("completed populating grid");
+    $('#while_waiting').hide();
+}
 
-
+function whenReceivingShape( json ) {
+    clog("request for shape completed, parsing json");
+    clog(json.substring(0, 400));
+    let shape = JSON.parse(json);
+    clog("request completed, received shape with length " + shape.length);
+    // all lines above are not necessary - only for debug
+    sessionStorage.setItem("shapeOfSelectedRoute", json);
+    clog("completed storing shape");
 }
 
 function fetchAllTripsForDayAndLine(date, routeId) {
@@ -142,7 +151,19 @@ function fetchAllTripsForDayAndLine(date, routeId) {
     }).done(whenReceivingTrips);
 }
 
+function fetchShapeOfSelectedRoute(selectedDate, selectedRouteId) {
+    clog("requesting shape for route " + selectedRouteId);
+
+    //const url = 'gtfs/trips/' + date + '/' + routeId;
+    const url = 'gtfs/shape/' + selectedRouteId ;
+    $.ajax({
+        url: url
+    }).done(whenReceivingShape);
+
+}
+
 $(document).ready(function() {
+
     prepareHide();
     // initialize the Trips part by calling the web App
     selectedRouteId = sessionStorage.getItem("selectedRouteId");
@@ -151,4 +172,5 @@ $(document).ready(function() {
     selectedDate = sessionStorage.getItem("selectedDate");
     clog('selectedDate='+selectedDate);
     fetchAllTripsForDayAndLine(selectedDate, selectedRouteId); //"2019-04-18");
+    fetchShapeOfSelectedRoute(selectedDate, selectedRouteId); // store in "shapeOfSelectedRoute"
 });

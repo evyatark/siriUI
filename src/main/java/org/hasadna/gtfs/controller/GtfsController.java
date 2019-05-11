@@ -28,7 +28,7 @@ public class GtfsController {
     Routes gtfsRoutes;
 
 
-    @GetMapping("shape/{routeId}")
+    @GetMapping("gtfs/shape/{routeId}")
     public String retrieveShapeOfRouteAsJson(@PathVariable String routeId) {
 
         return shapesService.findShape(routeId);

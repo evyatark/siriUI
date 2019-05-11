@@ -133,10 +133,15 @@ function clearStopDisplay(event) {
 // arg gtfsTripObject is an object of the format in allTrips
 function askDisplayAll(gtfsTripObject) {
     // mymap was declared as var in script in solution.html
-    // so it should be available here
     let tripId = gtfsTripObject.siriTripId;
     clog("asked to display trip with siri tripId=" + tripId);
-    clog("mymap=" + mymap);
+    let shapeJson = sessionStorage.getItem("shapeOfSelectedRoute");
+    if (!shapeJson) {   // shape null or empty?
+        clog("warning: shape of route " + gtfsTripObject.routeId + " not found in sessionStorage (retrieved by tripsTable.js)");
+    }
+    else {
+        gtfsTripObject.shape = { "coordinates": JSON.parse(shapeJson) } ;   // temporary?
+    }
     const route1 = displayAll(mymap, gtfsTripObject, 'black');
     clog("add route to map by tripId...");
     mapAllRoutesDisplayed.set(tripId, route1);
