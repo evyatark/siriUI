@@ -125,7 +125,12 @@ $(document).ready(function(){
         let tripId = event.currentTarget.children[1].textContent;
         clog("solutionWrapper: clicked line with tripId=" + tripId);
         let i = iframe.id;
-        iframe.contentWindow.askDisplayAll(findGtfsTripObject(tripId));
+        let setView = false;
+        if (!previousTripId) {
+            setView = true;
+        }
+        clog("setView=" + setView);
+        iframe.contentWindow.askDisplayAll(findGtfsTripObject(tripId), setView);
         iframe.contentWindow.removeTripFromMap(previousTripId);
         clog("done removing trip " + previousTripId);
         previousTripId = tripId;

@@ -14,7 +14,7 @@ function displayRouteOnMap(shape, color1) {
     // mymap is declared in script in solution.html
     const polyline = L.polyline(shape, {color: color1}).addTo(mymap);
     clog('polyline added to map');
-    mymap.fitBounds(polyline.getBounds());
+    //     mymap.fitBounds(polyline.getBounds());
     return polyline;
 }
 
@@ -131,7 +131,7 @@ function clearStopDisplay(event) {
 
 
 // arg gtfsTripObject is an object of the format in allTrips
-function askDisplayAll(gtfsTripObject) {
+function askDisplayAll(gtfsTripObject, setView) {
     // mymap was declared as var in script in solution.html
     let tripId = gtfsTripObject.siriTripId;
     clog("asked to display trip with siri tripId=" + tripId);
@@ -146,7 +146,9 @@ function askDisplayAll(gtfsTripObject) {
     clog("add route to map by tripId...");
     mapAllRoutesDisplayed.set(tripId, route1);
     clog("added. map now contains " + mapAllRoutesDisplayed.size);
-    mymap.setView(gtfsTripObject.siri.features[0].geometry.coordinates, 12);
+    if (setView) {
+        mymap.setView(gtfsTripObject.siri.features[0].geometry.coordinates, 12);
+    }
     //mymap.setView( [31.738494, 34.995529], 14);
 }
 
