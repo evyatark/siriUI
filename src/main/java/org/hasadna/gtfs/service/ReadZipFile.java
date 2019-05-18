@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -106,29 +107,51 @@ public class ReadZipFile {
         return lines;
     }
 
-    public Stream<String> stopTimesLinesOfTripFromFile1(String fileFullPath, String tripId) {
+    static int counter = 0 ;
+
+    public List<String> stopTimesLinesOfTripsFromFile(String fileFullPath, Set<String> tripIds) {
+        // depending on the number of trips, this method could take over 60 seconds to complete!
         String FILE_NAME_INSIDE_GTFS_ZIP = "stop_times.txt";
-        logger.info("read file {} inside {}, filter trip {} ...", FILE_NAME_INSIDE_GTFS_ZIP, fileFullPath, tripId);
+        logger.info("read file {} inside {}, filter trips {} ...", FILE_NAME_INSIDE_GTFS_ZIP, fileFullPath, tripIds);
         Stream<String> lines = null;
         Set<String> tripsInThisFile = new HashSet<>();
+        counter = 0 ;
         try {
             lines = readZipFile(fileFullPath, FILE_NAME_INSIDE_GTFS_ZIP)
                     .filter(line -> {
-                        String trip = line.split(",")[0];
-                        if (!tripsInThisFile.contains(trip)) {
-                            tripsInThisFile.add(trip);
-                            logger.debug(trip);
+                        counter = counter + 1 ;
+                        if (counter % 10000000 == 0) {
+                            logger.info("lines: {}",counter);
                         }
-                        if (line.startsWith(tripId.substring(0,6)))
-                            logger.debug("{}: {}", tripId, line);
-                        return line.startsWith(tripId + "_");
-                    });
-        } catch (Exception ex) {
+//                        String trip = line.split(",")[0];
+//                        if (!tripsInThisFile.contains(trip)) {
+//                            tripsInThisFile.add(trip);
+//                            logger.debug(trip);
+//                        }
+                        return lineBelongsToAnyTripId(tripIds, line);
+                    })
 
+                    ;
+        } catch (Exception ex) {
+            logger.error("exception", ex);
         }
-        logger.info("                             ...Done");
-        logger.info("trips in this stop_times file: {}", tripsInThisFile);
-        return lines;
+        try {   // this is where the reading from file actually happens!
+            return List.ofAll(lines);
+        }
+        finally {
+            logger.info("                             ...Done");
+        }
+    }
+
+    private boolean lineBelongsToAnyTripId(final Set<String> tripIds, final String line) {
+        // this works fine, but is a bit slow
+        //return tripIds.stream().anyMatch(tripId -> line.startsWith(tripId + "_"));
+        for (String tripId : tripIds) {
+            if (line.startsWith(tripId + "_")) {
+                return true;
+            }
+        }
+        return false;
     }
 
 

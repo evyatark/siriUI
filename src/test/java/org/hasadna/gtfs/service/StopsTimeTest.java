@@ -1,5 +1,6 @@
 package org.hasadna.gtfs.service;
 
+import io.vavr.collection.List;
 import io.vavr.collection.Stream;
 import org.assertj.core.api.Assertions;
 import org.hasadna.gtfs.entity.StopData;
@@ -30,7 +31,7 @@ public class StopsTimeTest {
         stops.gtfsZipFileDirFullPath = "/home/evyatar/logs/work/2019-04/gtfs/" ;
         stops.gtfsZipFileName = "gtfs" + date + ".zip" ;
         java.util.Map<String, java.util.Map<Integer, StopsTimeData>> map = new HashMap<>();
-        Map<String, Map<Integer, StopsTimeData>> stopsTimeMap = stops.readStopsTimeDataOfTripFromFile(TRIP_ID, map, date);
+        Map<String, Map<Integer, StopsTimeData>> stopsTimeMap = stops.readStopsTimeDataOfTripFromFile(List.of(TRIP_ID).toJavaSet(), map, date);
 
         logger.info("       ...completed");
 
@@ -72,7 +73,7 @@ public class StopsTimeTest {
         stops.gtfsZipFileName = "gtfs" + date + ".zip";
         stops.gtfsZipFileDirFullPath = gtfsDir;
         java.util.Map<String, java.util.Map<Integer, StopsTimeData>> map = new HashMap<>();
-        java.util.Map<String, java.util.Map<Integer, StopsTimeData>> populatedMap = stops.readStopsTimeDataOfTripFromFile(trip_id, map, date);
+        java.util.Map<String, java.util.Map<Integer, StopsTimeData>> populatedMap = stops.readStopsTimeDataOfTripFromFile(List.of(trip_id).toJavaSet(), map, date);
         logger.info("map populated. size=", populatedMap.keySet().size());
         logger.info("keys={}", populatedMap.keySet());
         return populatedMap;

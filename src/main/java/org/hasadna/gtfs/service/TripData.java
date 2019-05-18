@@ -16,6 +16,7 @@ public class TripData {
     String originalAimedDeparture;
     String gtfsETA;
     String gtfsTripId;
+    Boolean suspicious ;
 
     public Map<Integer, StopsTimeData> stopsTimeData;
 
@@ -150,6 +151,14 @@ public class TripData {
         this.siri = siri;
     }
 
+    public Boolean getSuspicious() {
+        return suspicious;
+    }
+
+    public void setSuspicious(Boolean suspicious) {
+        this.suspicious = suspicious;
+    }
+
     @Override
     public String toString() {
         return "TripData{" +
@@ -165,6 +174,7 @@ public class TripData {
                 ", stopsTimeData=" + stopsTimeData +
                 ", siriTripId='" + siriTripId + '\'' +
                 ", vehicleId='" + vehicleId + '\'' +
+                ", suspicious='" + suspicious + '\'' +
                 ", siri=[List of " + siri.features.length + " Features]" +
                 '}';
     }
@@ -207,4 +217,5 @@ class SiriReading {
     public void setRecalculatedETA(String recalculatedETA) {
         this.recalculatedETA = recalculatedETA;
     }
+
 }

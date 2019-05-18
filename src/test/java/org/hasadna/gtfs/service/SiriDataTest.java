@@ -315,7 +315,7 @@ public class SiriDataTest {
     @Test
     public void test14() {
         java.util.Map<String, java.util.Map<Integer, StopsTimeData>> map =
-            stops.generateStopsMap("36619570", "2019-03-04",
+            stops.generateStopsMap(List.of("36619570").toJavaSet(), "2019-03-04",
                 "/home/evyatar/logs/work/2019-03/gtfs", new HashMap<>());
         // map has key tripId and value is a map of all stops in this trip
         // generateStopsMap might return an empty map, if tripId not found in GTFS.
@@ -330,7 +330,7 @@ public class SiriDataTest {
     public void test15() {
         stops.gtfsZipFileName = "gtfs2019-03-03.zip";
         String TRIP_ID = "36619570" ;
-        java.util.List<String> linesOfTrip = stops.readStopTimesFile(TRIP_ID).collect(Collectors.toList());
+        java.util.List<String> linesOfTrip = stops.readStopTimesFile(List.of(TRIP_ID).toJavaSet()).collect(Collectors.toList());
         if (linesOfTrip.isEmpty()) {
             logger.info(" GTFS file {} does not contain tripId {}", stops.gtfsZipFileName, TRIP_ID);
         }

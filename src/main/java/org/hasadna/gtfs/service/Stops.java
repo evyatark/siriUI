@@ -1,5 +1,6 @@
 package org.hasadna.gtfs.service;
 
+import io.vavr.collection.List;
 import org.hasadna.gtfs.entity.StopData;
 import org.hasadna.gtfs.entity.StopsTimeData;
 import org.slf4j.Logger;
@@ -10,8 +11,8 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -63,13 +64,13 @@ public class Stops {
 
     /**
      * returns a Java8 Lazy Stream of lines
-     * @param tripId
+     * @param tripIds
      * @return
      */
-    public Stream<String> readStopTimesFile(String tripId) {
+    public List<String> readStopTimesFile(Set<String> tripIds) {
         String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
         logger.info("reading file {}", gtfsZipFileFullPath);
-        return (new ReadZipFile()).stopTimesLinesOfTripFromFile1(gtfsZipFileFullPath, tripId);
+        return (new ReadZipFile()).stopTimesLinesOfTripsFromFile(gtfsZipFileFullPath, tripIds);
     }
 
 
@@ -80,35 +81,45 @@ public class Stops {
      * The value of the second map is the StopsTimeData object, containing all data about that stop.
      * @return
      */
-    public Map<String, Map<Integer, StopsTimeData>> readStopsTimeDataOfTripFromFile(String tripId, Map<String, Map<Integer, StopsTimeData>> map, String date) {
+    public Map<String, Map<Integer, StopsTimeData>> readStopsTimeDataOfTripFromFile(Set<String> tripIds, Map<String, Map<Integer, StopsTimeData>> map, String date) {
 
         // read stops.txt file from GTFS zip. return map of stopId to stopData (all data we have about this stop in GTFS)
         Map<String, StopData> stopsMap = this.getMapForDate(date);
 
-        logger.info("reading stops_time file, filtering for trip {} ...", tripId);
-        Stream<String> lines = readStopTimesFile(tripId);   // get a lazy stream
-        logger.info("read {} lines from file stop_times.txt",lines.count());
-        lines = readStopTimesFile(tripId);  // read again because we want to return a stream
-        logger.info("                                               ...Done");
+        logger.debug("reading stops_time file, filtering for trips {} ...", tripIds);
+        List<String> lines = readStopTimesFile(tripIds);
+//        if (lines == null) {
+//            logger.error("no lines found in stops_time file for trip {}", tripId);
+//        }
+//        else {
+            logger.debug("Done! read {} lines from file stop_times.txt", lines.size());
+//        }
+//        lines = readStopTimesFile(tripId);  // read again because we want to return a stream
+//        logger.info("                                               ...Done");
         if (lines != null) {
-            logger.info("extracting from lines of trip {}", tripId);
-            //List<String> tripLines = lines.collect(Collectors.toList());
-            //logger.info("got {} lines for trip {}", tripLines.size(), tripId);
-            //lines = tripLines.stream();
-            lines
-                    //.filter(line -> line.startsWith(tripId + "_"))
+
+            // for each tripId from tripIds:
+            for (String tripId : tripIds) {
+
+                logger.info("extracting from lines of trip {}", tripId);
+                //List<String> tripLines = lines.collect(Collectors.toList());
+                //logger.info("got {} lines for trip {}", tripLines.size(), tripId);
+                //lines = tripLines.stream();
+                lines
+                    .filter(line -> line.startsWith(tripId + "_"))
                     .map(line -> {
-                        logger.info(line);
-                        return StopsTimeData.extractFrom(line);
-                    })
+                            logger.debug(line);
+                            return StopsTimeData.extractFrom(line);
+                        })
                     .map(stopsTimeData -> {
-                        stopsTimeData.stopData = stopsMap.get(stopsTimeData.stop_id);
-                        return stopsTimeData;
-                    })
+                            stopsTimeData.stopData = stopsMap.get(stopsTimeData.stop_id);
+                            return stopsTimeData;
+                        })
                     .forEach(stopsTimeData -> addToMap(stopsTimeData, map));
-        }
-        if (!map.containsKey(tripId)) {
-            logger.warn("tripId {} not found in GTFS!", tripId);
+                if (!map.containsKey(tripId)) {
+                    logger.warn("tripId {} not found in GTFS!", tripId);
+                }
+            }
         }
         return map;
 
@@ -133,17 +144,17 @@ public class Stops {
 
     /**
      *
-     * @param trip_id
+     * @param trip_ids
      * @param date
      * @param gtfsDir
      * @param map
      * @return map of tripId to a map. The inner map is a map of stopId to Stop record.
      */
-    public Map<String, Map<Integer, StopsTimeData>> generateStopsMap(String trip_id, String date, String gtfsDir, Map<String, Map<Integer, StopsTimeData>> map ) {
+    public Map<String, Map<Integer, StopsTimeData>> generateStopsMap(Set<String> trip_ids, String date, String gtfsDir, Map<String, Map<Integer, StopsTimeData>> map ) {
         //Stops stops = new Stops(gtfsDir + "/" + "gtfs" + date + ".zip") ;
         this.gtfsZipFileDirFullPath = gtfsDir + "/";
         this.gtfsZipFileName = "gtfs" + date + ".zip";
-        return readStopsTimeDataOfTripFromFile(trip_id, map, date);
+        return readStopsTimeDataOfTripFromFile(trip_ids, map, date);
     }
 
 

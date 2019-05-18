@@ -29,11 +29,15 @@ function populateTripsGrid(routeId, allTripsOfDay, date) {
         let agency = lineDetails.agencyName;
         let desc = lineDetails.description;
         let actualDeparture = lineDetails.actualDeparture;
+        let suspicious = lineDetails.suspicious;
+        if (suspicious) {status = "Suspicious";} else {status = "OK";}
+        let label = "lable-info";
+        if (suspicious) {label = "label-warning";}
         let tr1 = ' <tr class="clickable warning dropdown-deliverable" data-for="#details_' + i + '">\n' +
             '                <td>' + shortName + '</td>\n' +
             '                <td>' + tripId + '</td>\n' +
             '                <td>'+ oad +'</td>\n' +
-            '                <td><span class="label label-info">' + status + '</span></td>\n' +
+            '                <td><span class="label ' + label + '">' + status + '</span></td>\n' +
             '                <td>\n' +
             '                    <div class="progress">\n' +
             '                        <div class="progress-bar progress-bar-success" style="width: 100%;">\n' +

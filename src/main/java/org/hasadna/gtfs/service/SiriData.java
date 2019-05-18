@@ -8,6 +8,7 @@ import org.hasadna.gtfs.entity.StopsTimeData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import java.nio.file.Paths;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -24,6 +26,12 @@ import java.util.stream.Stream;
 public class SiriData {
 
     private static Logger logger = LoggerFactory.getLogger(SiriData.class);
+
+    @Value("${gtfsZipFileFullPath:/home/evyatar/logs/work/2019-04/gtfs/}")
+    public String gtfsZipFileDirFullPath = "";
+
+    @Value("${search.stops.in.gtfs:false}")
+    public boolean searchGTFS ;
 
     @Autowired
     Stops stops;
@@ -204,9 +212,20 @@ public class SiriData {
      * @throws JsonProcessingException
      */
     private String buildJson(Map<String,io.vavr.collection.Stream<String>> trips, DayOfWeek dayOfWeek, String date, String routeId) throws JsonProcessingException {
-        boolean searchGTFS = false;
+        //boolean searchGTFS = false;
         java.util.List<TripData> tripsData = buildTripData(trips, dayOfWeek, date, routeId);
-
+        List<String> suspicious =
+                List.ofAll(
+                        tripsData.stream()
+                                .filter(trip -> trip.suspicious.equals("true"))
+                                .map(tripData -> tripData.siriTripId) //using vavr instead of Java List
+                );
+        suspicious.forEach(tripId -> {
+                            int numberOfSiriPoints = List.ofAll(tripsData.stream())
+                                    .filter(tripData -> tripData.siriTripId.equals(tripId))
+                                    .map(td -> td.siri.features.length).get(0);
+                            logger.info("trip {} is suspicious: has only {} GPS points", tripId, numberOfSiriPoints);
+                        });
         // without the GTFS reading, we have a nice JSON, we only miss trips that were planned but not executed at all!
         // for example 420 2019-03-31 8:20
         // To know times of all planned trips, we can use the schedule files - in this case "siri.schedule.16.Sunday.json.2019-03-31"
@@ -216,21 +235,24 @@ public class SiriData {
         // tripsData is trips that we found in Siri. But sometimes these trip IDs are not found in GTFS???
         if (searchGTFS) {   // this block searches in GTFS files, which is very time consuming!
             // GTFS data is needed for displaying the stops in Leaflet widget UI
-            tripsData.forEach(tripData -> {
-                logger.warn("generate Stops map for trip {} at date {}", tripData.siriTripId, date);
-                java.util.Map<String, java.util.Map<Integer, StopsTimeData>> map = new HashMap<>();
-                logger.debug("searching in GTFS tripId={}, tripData={}", tripData.siriTripId, tripData);
-                java.util.Map<String, java.util.Map<Integer, StopsTimeData>> all =
-                        stops.generateStopsMap(tripData.siriTripId, date, "/home/evyatar/logs/work/2019-04/gtfs", map);
-                logger.debug("found {} stops for this trip", all.keySet().size());
-                tripData.stopsTimeData = all.get(tripData.siriTripId);
-            });
+            logger.info("reading data about stops, from GTFS file ...");
+            Set<String> tripIds = findAllTripIds(tripsData);
+            java.util.Map<String, java.util.Map<Integer, StopsTimeData>> map = new HashMap<>();
+            java.util.Map<String, java.util.Map<Integer, StopsTimeData>> all =
+                    stops.generateStopsMap(tripIds, date, gtfsZipFileDirFullPath, map);
+
+            tripsData.forEach(tripData -> tripData.stopsTimeData = all.get(tripData.siriTripId));
+            logger.info("                  ... Done");
         }
         logger.info("converting to JSON...");
         ObjectMapper x = new ObjectMapper();
         String json = x.writeValueAsString(tripsData);
         logger.info("                  ... Done");
         return json;
+    }
+
+    private Set<String> findAllTripIds(java.util.List<TripData> tripsData) {
+        return tripsData.stream().map(tripData -> tripData.siriTripId).collect(Collectors.toSet());
     }
 
     /**
@@ -261,6 +283,8 @@ public class SiriData {
                                     td.agencyName = agencyNameFromCode(td.agencyCode);
                                     td.shortName = extractShortName(firstLine);
                                     td.originalAimedDeparture = extractAimedDeparture(firstLine);
+                                    td.suspicious = false;
+                                    if (td.siri.features.length < 20) {td.suspicious = true;};
                                     return td;
                                 }).toJavaList();
     }
