@@ -77,7 +77,7 @@ function clearSiriPointDisplay(event) {
     parent.document.getElementById('siri_estimated_arrival').value = "";
 }
 
-function displayStopsOnMap(stops) {
+function displayStopsOnMap(stops, stopIconFileName) {
     // stops is array of objects like this:
     /*
             {
@@ -95,11 +95,14 @@ function displayStopsOnMap(stops) {
                 }
             },
     */
+    if (!stopIconFileName) {
+        stopIconFileName = 'yellow-flag.svg';
+    }
     let iconYellow = L.icon({
-        iconUrl: '/home/evyatar/work/hasadna/Hackathon2019/icons/yellow-flag.svg',
+        iconUrl: './icons/' + stopIconFileName,
         iconSize: 30
     });
-    const stopsMarkers = stops.map(stop => {
+    const stopsMarkers = stops.features.map(stop => {
 
             const coordinates = stop.geometry.coordinates;
             const marker = L.marker(coordinates, {icon: iconYellow}).addTo(mymap).bindPopup("<b>code:" +
@@ -108,13 +111,14 @@ function displayStopsOnMap(stops) {
                 stop.properties.stop_id);
             marker.on('mouseover', function (e) {
                 let x = parent.document.getElementById('gtfs_stop_code');
+                clog("mouse over stop " + stop.properties.stop_sequence);
                 // gtfs_stop_code in the parent document -
                 //works in Firefox but not in Chrome
                 // in Chrome use https://www.thegeekstuff.com/2016/09/disable-same-origin-policy/
                 //x.placeholder=stop.properties.stop_code;      // possible to change placeholder text
-                parent.document.getElementById('gtfs_stop_code').value = stop.properties.stop_code;
-                parent.document.getElementById('gtfs_stop_id').value = stop.properties.stop_id;
-                parent.document.getElementById('gtfs_stop_name').value = "תחנה בזמן";//stop.properties.stop_name;
+                // parent.document.getElementById('gtfs_stop_code').value = stop.properties.stop_code;
+                // parent.document.getElementById('gtfs_stop_id').value = stop.properties.stop_id;
+                // parent.document.getElementById('gtfs_stop_name').value = "תחנה בזמן";//stop.properties.stop_name;
             }).on('mouseout', clearStopDisplay);
             return marker;
         }
@@ -123,10 +127,9 @@ function displayStopsOnMap(stops) {
 }
 
 function clearStopDisplay(event) {
-    parent.document.getElementById('gtfs_stop_code').value = "";
-    parent.document.getElementById('gtfs_stop_id').value = "";
-    parent.document.getElementById('gtfs_stop_name').value = "";
-
+    // parent.document.getElementById('gtfs_stop_code').value = "";
+    // parent.document.getElementById('gtfs_stop_id').value = "";
+    // parent.document.getElementById('gtfs_stop_name').value = "";
 }
 
 
@@ -149,7 +152,6 @@ function askDisplayAll(gtfsTripObject, setView) {
     if (setView) {
         mymap.setView(gtfsTripObject.siri.features[0].geometry.coordinates, 12);
     }
-    //mymap.setView( [31.738494, 34.995529], 14);
 }
 
 function displayAll(mymap, tripObject, color) {
@@ -160,11 +162,14 @@ function displayAll(mymap, tripObject, color) {
     if (tripObject.shape) {
         polyline = displayRouteOnMap(tripObject.shape.coordinates, 'red');    // color of the polyline
     }
-    //const stopsMarkers = displayStopsOnMap(tripObject.stops);
+    let stopsMarkers = {};
+    if (tripObject.stops) {
+        stopsMarkers = displayStopsOnMap(tripObject.stops, "yellow-flag.svg");
+    }
     const siriMarkers = displaySiriPointsOnMap(tripObject.siri.features, color + '-pin.svg');   // color of the markers
     return {
-        route: {}, // polyline,
-        stops: {}, //stopsMarkers,
+        route: polyline,
+        stops: stopsMarkers,
         siri: siriMarkers
     };
 }

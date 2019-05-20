@@ -242,14 +242,20 @@ public class SiriData {
                     stops.generateStopsMap(tripIds, date, gtfsZipFileDirFullPath, map);
 
             tripsData.forEach(tripData -> tripData.stopsTimeData = all.get(tripData.siriTripId));
-            logger.info("                  ... Done");
+            logger.info("                  ... stopsTimeData Done");
+            tripsData.forEach(tripData -> {
+                tripData.stops = StopsTimeData.createFeatures(tripData.stopsTimeData);
+            });
+            logger.info("                  ... stopsFeatureCollection Done");
         }
         logger.info("converting to JSON...");
         ObjectMapper x = new ObjectMapper();
         String json = x.writeValueAsString(tripsData);
         logger.info("                  ... Done");
+        //logger.debug(x.writerWithDefaultPrettyPrinter().writeValueAsString(tripsData));
         return json;
     }
+
 
     private Set<String> findAllTripIds(java.util.List<TripData> tripsData) {
         return tripsData.stream().map(tripData -> tripData.siriTripId).collect(Collectors.toSet());

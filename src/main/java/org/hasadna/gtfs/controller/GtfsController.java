@@ -105,7 +105,7 @@ public class GtfsController {
 
      */
     @GetMapping("siri/day/{routeId}/{date}")
-    public String retrieveShapeOfRouteAsJson(@PathVariable String routeId, @PathVariable String date) {
+    public String retrieveSiriAndGtfsDataForRouteAndDateAsJson(@PathVariable String routeId, @PathVariable String date) {
         return siriData.dayResults(routeId, date);
     }
 

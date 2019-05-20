@@ -101,7 +101,7 @@ public class Stops {
             // for each tripId from tripIds:
             for (String tripId : tripIds) {
 
-                logger.info("extracting from lines of trip {}", tripId);
+                logger.debug("extracting from lines of trip {}", tripId);
                 //List<String> tripLines = lines.collect(Collectors.toList());
                 //logger.info("got {} lines for trip {}", tripLines.size(), tripId);
                 //lines = tripLines.stream();

@@ -113,6 +113,7 @@ public class ReadZipFile {
         // depending on the number of trips, this method could take over 60 seconds to complete!
         String FILE_NAME_INSIDE_GTFS_ZIP = "stop_times.txt";
         logger.info("read file {} inside {}, filter trips {} ...", FILE_NAME_INSIDE_GTFS_ZIP, fileFullPath, tripIds);
+        logger.info("=== wait patiently - this could take up to 60 seconds! ===");
         Stream<String> lines = null;
         Set<String> tripsInThisFile = new HashSet<>();
         counter = 0 ;
@@ -120,14 +121,7 @@ public class ReadZipFile {
             lines = readZipFile(fileFullPath, FILE_NAME_INSIDE_GTFS_ZIP)
                     .filter(line -> {
                         counter = counter + 1 ;
-                        if (counter % 10000000 == 0) {
-                            logger.info("lines: {}",counter);
-                        }
-//                        String trip = line.split(",")[0];
-//                        if (!tripsInThisFile.contains(trip)) {
-//                            tripsInThisFile.add(trip);
-//                            logger.debug(trip);
-//                        }
+                        if (counter % 10000000 == 0) {logger.debug("file stop_times.txt: number of lines read = {}",counter);}
                         return lineBelongsToAnyTripId(tripIds, line);
                     })
 
@@ -146,6 +140,7 @@ public class ReadZipFile {
     private boolean lineBelongsToAnyTripId(final Set<String> tripIds, final String line) {
         // this works fine, but is a bit slow
         //return tripIds.stream().anyMatch(tripId -> line.startsWith(tripId + "_"));
+        // this saves a few seconds:
         for (String tripId : tripIds) {
             if (line.startsWith(tripId + "_")) {
                 return true;

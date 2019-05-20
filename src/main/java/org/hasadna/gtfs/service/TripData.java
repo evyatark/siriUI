@@ -24,6 +24,7 @@ public class TripData {
     String vehicleId;
     List<SiriReading> siri1;
     SiriFeatureCollection siri;
+    StopFeatureCollection stops;
     /*
     {
         route
@@ -159,6 +160,14 @@ public class TripData {
         this.suspicious = suspicious;
     }
 
+    public StopFeatureCollection getStops() {
+        return stops;
+    }
+
+    public void setStops(StopFeatureCollection stops) {
+        this.stops = stops;
+    }
+
     @Override
     public String toString() {
         return "TripData{" +
@@ -217,5 +226,6 @@ class SiriReading {
     public void setRecalculatedETA(String recalculatedETA) {
         this.recalculatedETA = recalculatedETA;
     }
+
 
 }
