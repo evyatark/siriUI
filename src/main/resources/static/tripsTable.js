@@ -125,10 +125,16 @@ function retrieveReport(date, routeId) {
 }
 
 function whenReceivingTrips( json ) {
-    clog("request completed, parsing json");
-    clog(json.substring(0, 400));
+    clog("whenReceivingTrips: request for trips of route completed");
+    if (json) {
+        clog("trips json=" + json.substring(0, 400));
+    }
+    else {
+        clog("WARNING: empty json received from call to siri/day/{routeId}/{date}");
+        return;
+    }
     let allTripsOfDay = JSON.parse(json);
-    clog("request completed, received " + allTripsOfDay.length);
+    clog("request for trips of route " + selectedRouteId + " completed, received " + allTripsOfDay.length + " trips");
 
     populateTripsGrid(selectedRouteId, allTripsOfDay, selectedDate);
     clog("completed populating grid");
@@ -136,8 +142,16 @@ function whenReceivingTrips( json ) {
 }
 
 function whenReceivingShape( json ) {
-    clog("request for shape completed, parsing json");
-    clog(json.substring(0, 400));
+    clog("whenReceivingShape: request for shape completed, json=" + json);
+    if (json) {
+        clog(json.substring(0, 400));
+    }
+    else {
+        clog("WARNING: empty json received from call to gtfs/shape/{routeId}/{date}");
+        sessionStorage.setItem("shapeOfSelectedRoute", "");
+        return;
+    }
+    clog("parsing json");
     let shape = JSON.parse(json);
     clog("request completed, received shape with length " + shape.length);
     // all lines above are not necessary - only for debug
@@ -167,7 +181,7 @@ function fetchShapeOfSelectedRoute(selectedDate, selectedRouteId) {
 }
 
 $(document).ready(function() {
-
+    clog("tripsTable.js - ready() started");
     prepareHide();
     // initialize the Trips part by calling the web App
     selectedRouteId = sessionStorage.getItem("selectedRouteId");
@@ -175,6 +189,9 @@ $(document).ready(function() {
 
     selectedDate = sessionStorage.getItem("selectedDate");
     clog('selectedDate='+selectedDate);
+    clog("call fetchAllTrips");
     fetchAllTripsForDayAndLine(selectedDate, selectedRouteId); //"2019-04-18");
+    clog("call fetchShape");
     fetchShapeOfSelectedRoute(selectedDate, selectedRouteId); // store in "shapeOfSelectedRoute"
+    clog("tripsTable.js - ready() completed");
 });

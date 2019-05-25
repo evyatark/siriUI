@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -29,6 +30,10 @@ public class SiriData {
 
     private static Logger logger = LoggerFactory.getLogger(SiriData.class);
 
+    /**
+     * This is the directory with all GTFS files of a specific month.
+     * (it is also possible to put all GTFS files of several/all months in the same directory)
+     */
     @Value("${gtfsZipFileDirectory}")
     public String gtfsZipFileDirFullPath = "";          // :/home/evyatar/logs/work/2019-04/gtfs/
 
@@ -170,24 +175,50 @@ public class SiriData {
             ...
         ]
      */
-    @Cacheable("default")
+    @Cacheable("siriByRouteAndDay")
     public String dayResults(final String routeId, String date) {
         logger.warn("day results: routeId={}, date={}", routeId, date);
-        DayOfWeek dayOfWeek = LocalDate.parse(date).getDayOfWeek();
-        final String ROUTE_ID = routeId;
-        // assumes we won't have more than 20 files of siri results in the same date
+
+        Map<String, io.vavr.collection.Stream<String>> trips = findAllTrips(routeId, date);
+
+        java.util.List<TripData> tripsData = buildFullTripsData(trips, date, routeId);
+
+        final String json = convertToJson(tripsData);
+        return json;
+
+//        try {
+//            logger.info("building json for all trips...");
+//            DayOfWeek dayOfWeek = LocalDate.parse(date).getDayOfWeek();
+//            json = buildJson(trips, dayOfWeek, date, routeId);
+//            // TODO call createReport(trips, dayOfWeek, date, routeId);
+//        } catch (JsonProcessingException e) {
+//            logger.error("", e);
+//        }
+//        logger.warn(json);
+//        return json;
+    }
+
+
+    /**
+     * Process siri_rt_data files of the specified date, to create a data structure of
+     * all trips of the specified route, according to data we received from Siri.
+     * @param routeId
+     * @param date
+     * @return
+     */
+    public Map<String, io.vavr.collection.Stream<String>> findAllTrips(final String routeId, final String date) {
+        // names: list of names of all siri_rt_data files from the specified date
+        // (assumes we won't have more than 20 files of siri results in the same date)
         List<String> names = List.range(0, 20).map(i -> siriLogFilesDirectory + "siri_rt_data." + date + "." + i + ".log.gz");  // 2019-04-04
 
         logger.warn("reading {} siri results log files", names.size());
 
+        // lines/vLines: Stream/List of all lines from the siri_rt-data file(s) [of day {date}, that belong to route ROUTE_ID
         Stream<String> lines = this
                 .readSeveralGzipFiles(names.toJavaArray(String.class))
                 .filter(line -> line.length() > 1)
                 .filter(line -> !line.endsWith(",0,0"))
-
-                //.limit(70000)
-
-                .filter(line -> ROUTE_ID.equals(this.extractRouteId(line)));
+                .filter(line -> routeId.equals(this.extractRouteId(line)));
 
         logger.info("completed reading {} siri results log files", names.size());
 
@@ -196,53 +227,66 @@ public class SiriData {
 
         logger.info("grouping by tripId");
 
+        // map of all trips of {routeId} at day {date}
+        // key: tripId
+        // value: Stream/List of all lines from the siri_rt-data file(s), that belong to this trip
         Map<String, io.vavr.collection.Stream<String>> trips = vLines.groupBy(line -> this.extractTripId(line));
+        DayOfWeek dayOfWeek = LocalDate.parse(date).getDayOfWeek();
         logger.warn("{} {} route {}:got {} trips, {} of them suspicious", dayOfWeek, date, routeId, trips.size(), trips.count(trip->trip._2.count(i->true)<28));
-        String json = "";
-        try {
-            logger.info("building json for all trips...");
-            json = buildJson(trips, dayOfWeek, date, routeId);
-            // TODO call createReport(trips, dayOfWeek, date, routeId);
-        } catch (JsonProcessingException e) {
-            logger.error("", e);
-        }
-        logger.warn(json);
-        return json;
+
+        return trips;
     }
 
     /**
-     * build JSON representation of Siri results from the data in the method arguments
-     * @param trips
-     * @param dayOfWeek
-     * @param date
-     * @param routeId
+     * build a representation of Siri results from the data in the method arguments
+     * @param trips - map of all trips of {routeId} at day {date}
+     *                  key: tripId
+     *                  value: Stream/List of all lines from the siri_rt-data file(s), that belong to this trip
+     *
+     * @param date      exact date of the day that is processed. String, format 2019-05-25
+     * @param routeId   routeId of the route that is processed
      * @return
      * @throws JsonProcessingException
      */
-    private String buildJson(Map<String,io.vavr.collection.Stream<String>> trips, DayOfWeek dayOfWeek, String date, String routeId) throws JsonProcessingException {
-        //boolean searchGTFS = false;
-        java.util.List<TripData> tripsData = buildTripData(trips, dayOfWeek, date, routeId);
+    private java.util.List<TripData> buildFullTripsData(Map<String,io.vavr.collection.Stream<String>> trips, String date, String routeId) {
+        java.util.List<TripData> tripsData = buildTripData(trips, date, routeId);
+
+
         if ((tripsData == null) || tripsData.isEmpty()) {
             logger.warn("WARNING: emty or null trips data!");
+            return new ArrayList<>() ;
         }
-        List<String> suspicious =
-                List.ofAll(
-                        tripsData.stream()
-                                .filter(trip -> trip.suspicious.equals("true"))
-                                .map(tripData -> tripData.siriTripId) //using vavr instead of Java List
-                );
-        suspicious.forEach(tripId -> {
-                            int numberOfSiriPoints = List.ofAll(tripsData.stream())
-                                    .filter(tripData -> tripData.siriTripId.equals(tripId))
-                                    .map(td -> td.siri.features.length).get(0);
-                            logger.info("trip {} is suspicious: has only {} GPS points", tripId, numberOfSiriPoints);
-                        });
+
+        displaySuspiciousTrips(tripsData);
+
         // without the GTFS reading, we have a nice JSON, we only miss trips that were planned but not executed at all!
         // for example 420 2019-03-31 8:20
         // To know times of all planned trips, we can use the schedule files - in this case "siri.schedule.16.Sunday.json.2019-03-31"
         // (or we can read GTFS files and calculate again. Which is a small addition to
         // reading the time consuming Stops data and times that we can do now if searchGTFS is true)
 
+        tripsData = enrichTripsWithDataFromGtfs(tripsData, date);
+
+        return  tripsData;
+    }
+
+
+
+    public String convertToJson(java.util.List<TripData> tripsData) {
+        logger.info("converting to JSON...");
+        try {
+            ObjectMapper x = new ObjectMapper();
+            String json = x.writeValueAsString(tripsData);
+            //x.writerWithDefaultPrettyPrinter().writeValueAsString(tripsData);
+            logger.info("                  ... Done");
+            return json;
+        } catch (JsonProcessingException e) {
+            logger.error("exception during marshalling", e);
+            return "[]";
+        }
+    }
+
+    public java.util.List<TripData> enrichTripsWithDataFromGtfs(java.util.List<TripData> tripsData, final String date) {
         // tripsData is trips that we found in Siri. But sometimes these trip IDs are not found in GTFS???
         if (searchGTFS) {   // this part searches in GTFS files, which is very time consuming!
             // GTFS data is needed for displaying the stops in Leaflet widget UI
@@ -263,12 +307,22 @@ public class SiriData {
             });
             logger.info("                  ... stopsFeatureCollection Done");
         }
-        logger.info("converting to JSON...");
-        ObjectMapper x = new ObjectMapper();
-        String json = x.writeValueAsString(tripsData);
-        logger.info("                  ... Done");
-        //logger.debug(x.writerWithDefaultPrettyPrinter().writeValueAsString(tripsData));
-        return json;
+        return tripsData;
+    }
+
+    private void displaySuspiciousTrips( java.util.List<TripData> tripsData) {
+        List<String> suspicious =
+                List.ofAll(
+                        tripsData.stream()
+                                .filter(trip -> trip.suspicious.equals("true"))
+                                .map(tripData -> tripData.siriTripId) //using vavr instead of Java List
+                );
+        suspicious.forEach(tripId -> {
+            int numberOfSiriPoints = List.ofAll(tripsData.stream())
+                    .filter(tripData -> tripData.siriTripId.equals(tripId))
+                    .map(td -> td.siri.features.length).get(0);
+            logger.info("trip {} is suspicious: has only {} GPS points", tripId, numberOfSiriPoints);
+        });
     }
 
 
@@ -277,25 +331,23 @@ public class SiriData {
     }
 
 
-    private Stream<String> readMakatFile(String date) {
-        String makatZipFileName = "TripIdToDate" + date + ".zip";    // TripIdToDate2019-05-17.zip
-        String makatZipFileFullPath = directoryOfMakatFile + File.separatorChar + makatZipFileName;
-        return (new ReadZipFile()).makatLinesFromFile(makatZipFileFullPath);
-    }
-
 
 
     /**
      * build POJO representation of trips from the data in the method arguments
      * @param trips
-     * @param dayOfWeek
      * @param date
      * @param routeId
-     * @return
+     * @return          list of all trips (according to Siri data) of the specified route on the specified date.
+     *              Note that Siri data might not contain ALL planned trips. Because possibly some trips were
+     *              not executed at all.
+     *              To know also planned trips that do not appear in Siri Data, we need to extract this information
+     *              from GTFS (or from TripIdToDate, or from schedule files that were created by GTFS-Collector)
      */
     // sample of a line:
     // 2019-04-04T17:25:12.187,[line 358 v 8335053 oad 15:20 ea 18:17],15,8136,358,37350079,15:20,8335053,18:17,17:24:47,31.802471160888672,34.83134460449219
-    private java.util.List<TripData> buildTripData(Map<String, io.vavr.collection.Stream<String>> trips, DayOfWeek dayOfWeek, String date, String routeId) {
+    private java.util.List<TripData> buildTripData(Map<String, io.vavr.collection.Stream<String>> trips, String date, String routeId) {
+        DayOfWeek dayOfWeek = LocalDate.parse(date).getDayOfWeek();
         java.util.List<TripData> tripsAccordingToSiri =
             trips.keySet().map(tripId ->
                                 {
@@ -333,6 +385,14 @@ public class SiriData {
         // TODO sort tripsAccordingToSiri again (by originalAimedDeparture)
 */
         return tripsAccordingToSiri;
+    }
+
+
+
+    private Stream<String> readMakatFile(String date) {
+        String makatZipFileName = "TripIdToDate" + date + ".zip";    // TripIdToDate2019-05-17.zip
+        String makatZipFileFullPath = directoryOfMakatFile + File.separatorChar + makatZipFileName;
+        return (new ReadZipFile()).makatLinesFromFile(makatZipFileFullPath);
     }
 
     private java.util.List<TripData> findMissing(java.util.List<TripData> tripsAccordingToSiri, java.util.List<TripData> tripsAccordingToGtfsTripIdToDate) {
@@ -401,6 +461,12 @@ public class SiriData {
         return Integer.toString(result);
     }
 
+    /**
+     *
+     * @param line      A line from the file TripIdToDate
+     * @param dateOfTrip
+     * @return
+     */
     private TripData createTripData(String line, String dateOfTrip) {
         TripData td = new TripData();
         td.routeId = extractRouteIdFromTripIdToDateLine(line);
@@ -431,7 +497,11 @@ public class SiriData {
         return line.split(",")[0];
     }
 
-
+    /**
+     * Find all the routeIds that appear in siri_rt_data files of the specified date
+     * @param date
+     * @return      A list of routeIds
+     */
     public java.util.List<String> findAllBusLines(String date) {
         List<String> names = List.range(0, 20).map(i -> siriLogFilesDirectory + "siri_rt_data." + date + "." + i + ".log.gz");  // 2019-03-31
 

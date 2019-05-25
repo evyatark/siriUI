@@ -31,7 +31,7 @@ public class Shapes {
 //    private final String TRIPS_FILE = GTFS_DIR + "trips.txt";
 //    private final String SHAPES_FILE = GTFS_DIR + "shapes.txt";
 
-    @Cacheable("default")
+    @Cacheable("shapeByRouteAndDate")
     public String findShape(String routeId, String date) {
         try {
 

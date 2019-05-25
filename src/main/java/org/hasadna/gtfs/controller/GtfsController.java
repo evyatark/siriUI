@@ -36,7 +36,7 @@ public class GtfsController {
      */
     @GetMapping("gtfs/shape/{routeId}/{date}")
     public String retrieveShapeOfRouteAsJson(@PathVariable String routeId, @PathVariable String date) {
-
+        logger.warn("===> gtfs/shape/{}/{}",routeId,date);
         return shapesService.findShape(routeId, date);
         // sample
         // route 16212
@@ -106,11 +106,13 @@ public class GtfsController {
      */
     @GetMapping("siri/day/{routeId}/{date}")
     public String retrieveSiriAndGtfsDataForRouteAndDateAsJson(@PathVariable String routeId, @PathVariable String date) {
+        logger.warn("===> siri/day/{}/{}",routeId,date);
         return siriData.dayResults(routeId, date);
     }
 
     @GetMapping("gtfs/lines/{date}")
     public String retrieveAllLinesByDate(@PathVariable String date) {
+        logger.warn("===> gtfs/lines/{}",date);
         String json = null;
         try {
             logger.warn("finding all GTFS routes for date {} ...", date);

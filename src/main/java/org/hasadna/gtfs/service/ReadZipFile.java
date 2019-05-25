@@ -181,7 +181,7 @@ public class ReadZipFile {
             lines = readZipFile(fileFullPath, FILE_NAME_INSIDE_GTFS_ZIP)
                     .filter(line -> {
                         counter = counter + 1 ;
-                        if (counter % 1000000 == 0) {logger.info("file stop_times.txt: number of lines read = {}",counter);}
+                        if (counter % 10000000 == 0) {logger.info("file stop_times.txt: number of lines read = {}",counter);}
                         return lineBelongsToAnyTripId(tripIds, line);
                     })
 
