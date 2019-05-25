@@ -156,10 +156,10 @@ function fetchAllTripsForDayAndLine(date, routeId) {
 }
 
 function fetchShapeOfSelectedRoute(selectedDate, selectedRouteId) {
-    clog("requesting shape for route " + selectedRouteId);
+    clog("requesting shape for route " + selectedRouteId + " on " + selectedDate);
 
     //const url = 'gtfs/trips/' + date + '/' + routeId;
-    const url = 'gtfs/shape/' + selectedRouteId ;
+    const url = 'gtfs/shape/' + selectedRouteId + '/' + selectedDate ;
     $.ajax({
         url: url
     }).done(whenReceivingShape);

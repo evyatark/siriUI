@@ -55,6 +55,66 @@ public class ReadZipFile {
 
     /****************************
      *
+     *  Shapes.txt
+     *
+     ****************************/
+
+    public Stream<String> shapeLinesFromFile(String fileFullPath) {
+        io.vavr.collection.Stream<String> lines = io.vavr.collection.Stream.empty();
+        try {
+            lines = readZipFileV(fileFullPath, "shapes.txt")
+                    .collect(io.vavr.collection.Stream.collector());
+        } catch (Exception ex) {
+
+        }
+        return lines.toJavaStream();
+    }
+
+    /****************************
+     *
+     *  Trips.txt
+     *
+     ****************************/
+
+    public Stream<String> tripLinesFromFile(String fileFullPath) {
+        io.vavr.collection.Stream<String> lines = io.vavr.collection.Stream.empty();
+        try {
+            lines = readZipFileV(fileFullPath, "trips.txt")
+                    .collect(io.vavr.collection.Stream.collector());
+        } catch (Exception ex) {
+
+        }
+        return lines.toJavaStream();
+    }
+
+
+    /****************************
+     *
+     *  TripIdToDate.txt
+     *
+     ****************************/
+
+    public Stream<String> makatLinesFromFile(String fileFullPath) {
+        // client code:
+        String date = "2019-05-17";
+        String directoryOfMakatFile = "/home/evyatar/logs/makat/";
+        String makatZipFileName = "TripIdToDate" + date + ".zip";    // TripIdToDate2019-05-17.zip
+        String makatZipFileFullPath = directoryOfMakatFile + File.separatorChar + makatZipFileName;
+        fileFullPath = makatZipFileFullPath ;
+        ////// end client code
+        io.vavr.collection.Stream<String> lines = io.vavr.collection.Stream.empty();
+        try {
+            lines = readZipFileV(fileFullPath, "TripIdToDate.txt")
+                    .collect(io.vavr.collection.Stream.collector());
+        } catch (Exception ex) {
+
+        }
+        return lines.toJavaStream();
+    }
+
+
+    /****************************
+     *
      *  Stops.txt
      *
      ****************************/
@@ -121,7 +181,7 @@ public class ReadZipFile {
             lines = readZipFile(fileFullPath, FILE_NAME_INSIDE_GTFS_ZIP)
                     .filter(line -> {
                         counter = counter + 1 ;
-                        if (counter % 10000000 == 0) {logger.debug("file stop_times.txt: number of lines read = {}",counter);}
+                        if (counter % 1000000 == 0) {logger.info("file stop_times.txt: number of lines read = {}",counter);}
                         return lineBelongsToAnyTripId(tripIds, line);
                     })
 
@@ -146,6 +206,9 @@ public class ReadZipFile {
                 return true;
             }
         }
+        // TODO check if following code improves performance:
+        //String lineStart = line.split("_")[0];
+        //return (tripIds.contains(lineStart));
         return false;
     }
 

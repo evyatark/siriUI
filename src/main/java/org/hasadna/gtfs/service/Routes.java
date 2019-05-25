@@ -23,17 +23,16 @@ public class Routes {
 
     private static Logger logger = LoggerFactory.getLogger(Routes.class);
 
-    @Value("${gtfsZipFileFullPath:/home/evyatar/logs/work/2019-04/gtfs/}")
+    @Value("${gtfsZipFileDirectory}")       // :/home/evyatar/logs/work/2019-04/gtfs/
     public String gtfsZipFileDirFullPath = "";
 
-    @Value("${gtfsZipFileName:gtfs2019-04-18.zip}")
-    public String gtfsZipFileName = "";
+
 
 
     @Cacheable("default")
     public String allRoutesAsJson(String date) throws JsonProcessingException {
-        this.gtfsZipFileName = "gtfs" + date + ".zip";
-        String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        final String gtfsZipFileName = "gtfs" + date + ".zip";
+        final String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
 
         logger.info("collect routes...");
         java.util.List<RouteData> routes = collectAllRoutes(gtfsZipFileFullPath);
@@ -43,15 +42,15 @@ public class Routes {
         ObjectMapper x = new ObjectMapper();
         String json = x.writeValueAsString(routes);
         logger.info("                  ... Done");
-        logger.info(json.substring(0, 3000));
+        logger.info(json.substring(0, Math.min(3000, json.length())));
         return json;
     }
 
     @Cacheable("default")
     public String routesAsJson(List<String> onlyTheseRoutes, String date) throws JsonProcessingException {
 
-        this.gtfsZipFileName = "gtfs" + date + ".zip";
-        String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        final String gtfsZipFileName = "gtfs" + date + ".zip";
+        final String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
 
         logger.info("collect routes...");
         java.util.List<RouteData> routes = collectRoutes(onlyTheseRoutes, gtfsZipFileFullPath);

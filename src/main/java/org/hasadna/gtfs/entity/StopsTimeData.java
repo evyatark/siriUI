@@ -61,6 +61,10 @@ public class StopsTimeData {
     }
 
     public static StopFeatureCollection createFeatures(final Map<Integer, StopsTimeData> stopsTimeData) {
+        if ((stopsTimeData == null) || stopsTimeData.isEmpty()) {
+            logger.warn("WARNING: null or empty data about stops time!");
+            return new StopFeatureCollection(new StopFeature[]{});  // empty
+        }
         List<StopFeature> sfs = stopsTimeData.keySet().stream()
                 .map(stopSequenceStr ->
                         createStopPart(stopsTimeData.get(stopSequenceStr)))
