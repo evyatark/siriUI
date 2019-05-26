@@ -177,25 +177,15 @@ public class SiriData {
      */
     @Cacheable("siriByRouteAndDay")
     public String dayResults(final String routeId, String date) {
-        logger.warn("day results: routeId={}, date={}", routeId, date);
+        logger.warn("day results started: routeId={}, date={}", routeId, date);
 
         Map<String, io.vavr.collection.Stream<String>> trips = findAllTrips(routeId, date);
 
         java.util.List<TripData> tripsData = buildFullTripsData(trips, date, routeId);
 
         final String json = convertToJson(tripsData);
+        logger.warn("day results completed: routeId={}, date={}", routeId, date);
         return json;
-
-//        try {
-//            logger.info("building json for all trips...");
-//            DayOfWeek dayOfWeek = LocalDate.parse(date).getDayOfWeek();
-//            json = buildJson(trips, dayOfWeek, date, routeId);
-//            // TODO call createReport(trips, dayOfWeek, date, routeId);
-//        } catch (JsonProcessingException e) {
-//            logger.error("", e);
-//        }
-//        logger.warn(json);
-//        return json;
     }
 
 
@@ -249,6 +239,8 @@ public class SiriData {
      * @throws JsonProcessingException
      */
     private java.util.List<TripData> buildFullTripsData(Map<String,io.vavr.collection.Stream<String>> trips, String date, String routeId) {
+
+        // only from Siri:
         java.util.List<TripData> tripsData = buildTripData(trips, date, routeId);
 
 
@@ -265,13 +257,50 @@ public class SiriData {
         // (or we can read GTFS files and calculate again. Which is a small addition to
         // reading the time consuming Stops data and times that we can do now if searchGTFS is true)
 
+        // add GTFS data
         tripsData = enrichTripsWithDataFromGtfs(tripsData, date);
 
-        return  tripsData;
+        return tripsData;
     }
 
 
+    /**
+     *
+     * @param tripsData
+     * @return
 
+     * resulting JSON will look like this:
+     *
+     *
+        [                   // array of objects
+            {               // each object contains some properties (routeId, etc)
+                            // and a property named "siri1" which is an array of Siri objects
+                            // (gps location with a timestamp)
+                "routeId": "15531",
+                "shortName": "420",
+                "agencyCode": "16",
+                "agencyName": null,
+                "dayOfWeek": "MONDAY",
+                "date": "2019-03-04",
+                "originalAimedDeparture": null,
+                "gtfsETA": null,
+                "gtfsTripId": null,
+                "stopsTimeData": null,
+                "siriTripId": "36619535",
+                "vehicleId": "3175078",
+                "siri1": [
+                    {
+                        "timestamp": "2019-03-04T05:20:08.073",
+                        "timestampGPS": "05:20:02",
+                        "latLong": ["31.74322509765625", "34.98543930053711"],
+                        "recalculatedETA": null
+                    },
+                    ...
+                ]
+            },
+            ...
+        ]
+     */
     public String convertToJson(java.util.List<TripData> tripsData) {
         logger.info("converting to JSON...");
         try {
@@ -285,6 +314,7 @@ public class SiriData {
             return "[]";
         }
     }
+
 
     public java.util.List<TripData> enrichTripsWithDataFromGtfs(java.util.List<TripData> tripsData, final String date) {
         // tripsData is trips that we found in Siri. But sometimes these trip IDs are not found in GTFS???
@@ -348,6 +378,7 @@ public class SiriData {
     // 2019-04-04T17:25:12.187,[line 358 v 8335053 oad 15:20 ea 18:17],15,8136,358,37350079,15:20,8335053,18:17,17:24:47,31.802471160888672,34.83134460449219
     private java.util.List<TripData> buildTripData(Map<String, io.vavr.collection.Stream<String>> trips, String date, String routeId) {
         DayOfWeek dayOfWeek = LocalDate.parse(date).getDayOfWeek();
+
         java.util.List<TripData> tripsAccordingToSiri =
             trips.keySet().map(tripId ->
                                 {
