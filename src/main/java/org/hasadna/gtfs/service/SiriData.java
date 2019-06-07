@@ -2,6 +2,8 @@ package org.hasadna.gtfs.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.vavr.Tuple;
+import io.vavr.Tuple2;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import org.hasadna.gtfs.entity.StopsTimeData;
@@ -14,12 +16,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -48,6 +52,9 @@ public class SiriData {
 
     @Autowired
     Stops stops;
+
+    @Autowired
+    SchedulesData schedulesData;
 
     /**
      * create a Stream of lines from several gz siri results files
@@ -177,15 +184,34 @@ public class SiriData {
      */
     @Cacheable("siriByRouteAndDay")
     public String dayResults(final String routeId, String date) {
-        logger.warn("day results started: routeId={}, date={}", routeId, date);
+        java.util.List<String> schedules =  schedulesData.findAllSchedules(routeId, date);
+        logger.warn("day results started: routeId={}, date={}, schedules={}", routeId, date, schedules);
 
         Map<String, io.vavr.collection.Stream<String>> trips = findAllTrips(routeId, date);
 
         java.util.List<TripData> tripsData = buildFullTripsData(trips, date, routeId);
-
+        java.util.List<String> listOfSiriDepartures = tripsData.stream().map(tripData -> tripData.originalAimedDeparture).collect(Collectors.toList());
+        java.util.List<String> listOfMissingDepartures = schedules.stream().filter(departure -> !listOfSiriDepartures.contains(departure)).collect(Collectors.toList());
+        logger.info("departures missing from siri data: {}", listOfMissingDepartures);
+        // list of siri departures that were not planned by GTFS
+        java.util.List<String> listOfExcessDepartures = listOfSiriDepartures.stream().filter(departure -> !schedules.contains(departure)).collect(Collectors.toList());
+        logger.info("departures from siri data that are not planned in GTFS: {}", listOfExcessDepartures);
+        // add GTFS missing to list that will be displayed
+        for (String departure : listOfMissingDepartures) {
+            tripsData.add(BuidTripDataForMissingDeparture(departure, date, routeId));
+        }
         final String json = convertToJson(tripsData);
         logger.warn("day results completed: routeId={}, date={}", routeId, date);
         return json;
+    }
+
+    private TripData BuidTripDataForMissingDeparture(String departure, String date, String routeId) {
+        TripData tripData = new TripData();
+        tripData.originalAimedDeparture = departure;
+        tripData.suspicious = true;
+        tripData.date = date;
+        tripData.routeId = routeId;
+        return tripData;
     }
 
 
@@ -260,7 +286,35 @@ public class SiriData {
         // add GTFS data
         tripsData = enrichTripsWithDataFromGtfs(tripsData, date);
 
+        java.util.List<Tuple2<String, String>> scheduledTrips = findScheduledTrips(date, routeId);
+
+        java.util.List<String> scheduledTripIds = scheduledTrips.stream().map(tup -> tup._1).collect(Collectors.toList());
+        java.util.List<String> tripIds = tripsData.stream().map(td -> td.siriTripId).collect(Collectors.toList());
+        
+        if (scheduledTripIds.containsAll(tripIds)) {
+            // very nice - same tripIds
+            
+            // we want those that are in scheduledTrips but are not in (siri) tripIds
+            List<String> tripsNotExecuted = differenceBetweenLists(scheduledTripIds, tripIds);
+        }
         return tripsData;
+    }
+
+    private List<String> differenceBetweenLists(java.util.List<String> scheduledTripIds, java.util.List<String> tripIds) {
+        return List.empty();
+    }
+
+    /**
+     * read schedule files
+     * @param date
+     * @param routeId
+     * @return  list of all expected trips (according to GTFS) of the specified route, at the specified date.
+     * each item in the list is a Tuple of tripId and AimedDepartureTime (hh:mm)
+     */
+    private java.util.List<Tuple2<String, String>> findScheduledTrips(String date, String routeId) {
+        ArrayList<Tuple2<String, String>> list = new ArrayList<>();
+        list.add(Tuple.of("a", "b"));
+        return list;
     }
 
 

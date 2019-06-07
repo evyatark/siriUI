@@ -31,13 +31,6 @@ public class Routes {
 
     @Cacheable("routeIdsByDate")
     public String allRoutesAsJson(String date) throws JsonProcessingException {
-//        final String gtfsZipFileName = "gtfs" + date + ".zip";
-//        final String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
-//
-//        logger.info("collect routes...");
-//        java.util.List<RouteData> routes = collectAllRoutes(gtfsZipFileFullPath);
-//        logger.info("{} routes.", routes.size());
-
         java.util.List<RouteData> routes = allRoutesByDate(date);
 
         logger.info("converting to JSON...");
