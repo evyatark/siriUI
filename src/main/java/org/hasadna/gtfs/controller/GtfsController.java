@@ -133,7 +133,11 @@ public class GtfsController {
     // ===== deprecated =====
 
 
-
+    @GetMapping("test")
+    public String test() {
+        logger.info("test API called");
+        return "Hello World!";
+    }
 
 
     //@GetMapping("gtfs/lines/old/{date}")
