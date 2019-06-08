@@ -7,9 +7,7 @@ import org.hasadna.gtfs.service.SiriData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -130,7 +128,7 @@ public class GtfsController {
 
 
 
-    // ===== deprecated =====
+    // ===== temporary =====
 
 
     @GetMapping("test")
@@ -139,23 +137,10 @@ public class GtfsController {
         return "Hello World!";
     }
 
-
-    //@GetMapping("gtfs/lines/old/{date}")
-    @Deprecated
-    private String retrieveAllLinesByDate1(@PathVariable String date) {
-        logger.warn("finding siri bus lines for {} ...", date);
-        List<String> routeIds = siriData.findAllBusLines(date);
-        logger.warn("  Done");
-        String json = null;
-        try {
-            logger.warn("finding GTFS routes for {} route IDs...", routeIds.size());
-            json = gtfsRoutes.routesAsJson(io.vavr.collection.List.ofAll(routeIds), date);
-        } catch (JsonProcessingException e) {
-            logger.error("exception while converting to JSON", e);
-            return "[]";
-        }
-
-        return json;
+    @PostMapping("siri/raw/data")
+    public String test(@RequestBody String body) {
+        logger.info("received siri raw data {}", body);
+        return "ok";
     }
 
 }
