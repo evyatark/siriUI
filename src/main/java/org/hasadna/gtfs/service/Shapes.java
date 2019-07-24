@@ -2,6 +2,7 @@ package org.hasadna.gtfs.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,9 @@ public class Shapes {
 
     @Value("${tripIdToDate.ZipFileDirectory}")
     public String directoryOfMakatFile;
+
+    @Autowired
+    Shape shapeById;
 
 //    private final String GTFS_DIR = "/home/evyatar/logs/work/work 2019-04-18/gtfs2019-04-18/";
 //    private final String TRIPS_FILE = GTFS_DIR + "trips.txt";
@@ -60,12 +64,13 @@ public class Shapes {
             }
             //tripLine.map(line -> line.split(",")).map(arr -> arr[5]).orElse("");
             String shapeId = shapeIdOpt.get();
-            List<String> shapeLines =
-                    rzf.shapeLinesFromFile(gtfsZipFileFullPath)
-                            .filter(line -> line.startsWith(shapeId))
-                            .collect(Collectors.toList()); // only the lines that start with shapeId as the first item
+            List<String> shapeLines = shapeById.retrieveShapeId(shapeId, gtfsZipFileFullPath);
+//            List<String> shapeLines =
+//                    rzf.shapeLinesFromFile(gtfsZipFileFullPath)
+//                            .filter(line -> line.startsWith(shapeId))
+//                            .collect(Collectors.toList()); // only the lines that start with shapeId as the first item
             logger.info("collected {} lines for shape {}", shapeLines.size(), shapeId);
-            String json = generateShapeJson(shapeLines);
+            String json = generateShapeJson(shapeLines, shapeId);
             logger.info("json for shape {}: {}", shapeId, json.substring(0, 2000));
             // [32.054065,35.239214][32.054393,35.239772][32.054735,35.240334]
             return json;
@@ -76,12 +81,35 @@ public class Shapes {
         }
     }
 
-    private String generateShapeJson(List<String> shapeLines) {
+//    @Cacheable("shapeByIdAndDate")
+//    public List<String> retrieveShapeId(String shapeId, String gtfsZipFileFullPath) {
+//        return new ReadZipFile().shapeLinesFromFile(gtfsZipFileFullPath)
+//                .filter(line -> line.startsWith(shapeId))
+//                .collect(Collectors.toList()); // only the lines that start with shapeId as the first item
+//    }
+
+    private String generateShapeJson(List<String> shapeLines, String shapeId) {
         String shapePoints = "" + shapeLines.stream()
                 .map(line -> "[" + line.split(",")[1] + "," + line.split(",")[2] + "]")
                 .reduce((a, b) -> a + "," + b).get();
-        return "[" +  shapePoints + "]";
+        String result = "{\"shapeId\": \"" + shapeId + "\", \"shape\": [" + shapePoints + "]}";
+        return result;
     }
 
 
+    // using trips.txt data to search tripIDs of the SUNDAY of that week!
+//    public void findRouteTrips(String routeId, String date) throws IOException {
+//        findLinesOfGtfsTripsFile(date).filter(line -> )
+//    }
+
+    private String calcName(String date) {
+        String gtfsZipFileName = "gtfs" + date + ".zip";
+        String gtfsZipFileFullPath = directoryOfGtfsFile + File.separatorChar + gtfsZipFileName;
+        return gtfsZipFileFullPath;
+    }
+
+    private io.vavr.collection.Stream<String> findLinesOfGtfsTripsFile(String date) throws IOException {
+        ReadZipFile rzf = new ReadZipFile();
+        return rzf.readZipFileV(calcName(date), "trips.txt");
+    }
 }

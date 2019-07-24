@@ -57,7 +57,27 @@
             <artifactId>json-path</artifactId>
             <version>2.4.0</version>
         </dependency>
+
+        <dependency>
+            <!-- key Value DB with persistence to file system -
+                    used for saving JSON representation of Siri points, stops, etc for each routeId+Date
+            -->
+            <groupId>com.oath.halodb</groupId>
+            <artifactId>halodb</artifactId>
+            <version>0.5.3</version>
+        </dependency>
+
     </dependencies>
+
+    <repositories>
+        <repository>
+            <!-- for haloDB -->
+            <id>yahoo-bintray</id>
+            <name>yahoo-bintray</name>
+            <url>https://yahoo.bintray.com/maven</url>
+        </repository>
+
+    </repositories>
 
     <build>
         <plugins>
@@ -67,5 +87,6 @@
             </plugin>
         </plugins>
     </build>
+
 
 </project>

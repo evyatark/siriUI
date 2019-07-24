@@ -153,9 +153,9 @@ function whenReceivingShape( json ) {
     }
     clog("parsing json");
     let shape = JSON.parse(json);
-    clog("request completed, received shape with length " + shape.length);
+    clog("request completed, received shape with length " + shape.shape.length);
     // all lines above are not necessary - only for debug
-    sessionStorage.setItem("shapeOfSelectedRoute", json);
+    sessionStorage.setItem("shapeOfSelectedRoute", JSON.stringify(shape.shape));
     clog("completed storing shape");
 }
 

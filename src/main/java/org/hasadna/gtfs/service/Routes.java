@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -32,24 +33,49 @@ public class Routes {
     @Cacheable("routeIdsByDate")
     public String allRoutesAsJson(String date) throws JsonProcessingException {
         java.util.List<RouteData> routes = allRoutesByDate(date);
+        logger.info("found {} routes on date {}", routes.size(), date);
 
-        logger.info("converting to JSON...");
+        logger.debug("converting to JSON...");
         ObjectMapper x = new ObjectMapper();
         String json = x.writeValueAsString(routes);
-        logger.info("                  ... Done");
-        logger.info(json.substring(0, Math.min(3000, json.length())));
+        logger.debug("                  ... Done");
+        logger.trace(json.substring(0, Math.min(3000, json.length())));logger.info("return json (size={} characters)", json.length());
         return json;
     }
 
     public java.util.List<RouteData> allRoutesByDate(String date) {
         final String gtfsZipFileName = "gtfs" + date + ".zip";
-        final String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        final String originalGtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
 
-        logger.info("collect routes...");
+        String gtfsZipFileFullPath = Utils.ensureFileExist(originalGtfsZipFileFullPath);
+        logger.debug("collect routes...");
         java.util.List<RouteData> routes = collectAllRoutes(gtfsZipFileFullPath);
-        logger.info("{} routes.", routes.size());
+        logger.debug("{} routes.", routes.size());
         return routes;
     }
+
+//    private static String ensureFileExist(String gtfsZipFileFullPath) {
+//        String fileThatActuallyExists = gtfsZipFileFullPath;
+//        File f = new File(gtfsZipFileFullPath);
+//        while (!f.exists()) {
+//            logger.warn("file {} not found", f.getName());
+//            fileThatActuallyExists = findPreviousDate(fileThatActuallyExists);
+//            f = new File(fileThatActuallyExists);
+//        }
+//        logger.info("using file {}", fileThatActuallyExists);
+//        return fileThatActuallyExists;
+//    }
+//
+//    private static String findPreviousDate(final String gtfsZipFileFullPath) {
+//        String[] strs = gtfsZipFileFullPath.split(".zip")[0].split("-");
+//        String day = strs[strs.length - 1];
+//        String previousDay = Integer.toString( Integer.parseInt(day) - 1 );
+//        if (previousDay.length() == 1) {
+//            previousDay = "0" + previousDay;
+//        }
+//        String ret = gtfsZipFileFullPath.split(day + ".zip")[0] + previousDay + ".zip";
+//        return ret;
+//    }
 
     @Cacheable("default")
     public String routesAsJson(List<String> onlyTheseRoutes, String date) throws JsonProcessingException {

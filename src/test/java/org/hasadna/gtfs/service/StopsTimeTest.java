@@ -21,6 +21,7 @@ public class StopsTimeTest {
     @Autowired
     Stops stops;
 
+/*
     @Test
     public void test1() throws IOException {
         final String TRIP_ID = "37203669";
@@ -78,5 +79,5 @@ public class StopsTimeTest {
         logger.info("keys={}", populatedMap.keySet());
         return populatedMap;
     }
-
+*/
 }

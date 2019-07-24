@@ -1,5 +1,6 @@
 package org.hasadna.gtfs.service;
 
+import io.vavr.Tuple2;
 import io.vavr.collection.List;
 import org.hasadna.gtfs.entity.StopData;
 import org.hasadna.gtfs.entity.StopsTimeData;
@@ -43,7 +44,8 @@ public class Stops {
     }
 
     private Stream<String> readStopsFile() {
-        String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        String originalGtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        String gtfsZipFileFullPath = Utils.ensureFileExist(originalGtfsZipFileFullPath);
         return (new ReadZipFile()).stopLinesFromFile(gtfsZipFileFullPath).toJavaStream();
     }
 
@@ -67,7 +69,8 @@ public class Stops {
      * @return
      */
     public List<String> readStopTimesFile(Set<String> tripIds) {
-        String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        String originalGtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        String gtfsZipFileFullPath = Utils.ensureFileExist(originalGtfsZipFileFullPath);
         logger.info("reading file {}", gtfsZipFileFullPath);
         return (new ReadZipFile()).stopTimesLinesOfTripsFromFile(gtfsZipFileFullPath, tripIds);
     }
@@ -80,8 +83,8 @@ public class Stops {
      * The value of the second map is the StopsTimeData object, containing all data about that stop.
      * @return
      */
-    public Map<String, Map<Integer, StopsTimeData>> readStopsTimeDataOfTripFromFile(Set<String> tripIds, Map<String, Map<Integer, StopsTimeData>> map, String date) {
-
+    public Map<String, Map<Integer, StopsTimeData>> readStopsTimeDataOfTripFromFile(Set<String> tripIds, String date) {
+        Map<String, java.util.Map<Integer, StopsTimeData>> map = new HashMap<>();
         // read stops.txt file from GTFS zip. return map of stopId to stopData (all data we have about this stop in GTFS)
         Map<String, StopData> stopsMap = this.getMapForDate(date);
 
@@ -95,7 +98,7 @@ public class Stops {
 //        }
 //        lines = readStopTimesFile(tripId);  // read again because we want to return a stream
 //        logger.info("                                               ...Done");
-        if (lines != null) {
+        if ((lines != null) && !lines.isEmpty()) {
 
             // for each tripId from tripIds:
             for (String tripId : tripIds) {
@@ -120,8 +123,19 @@ public class Stops {
                 }
             }
         }
+        else if ((lines != null) && lines.isEmpty()) {
+            logger.warn("no lines were found in GTFS file stop_times.txt for any of the tripIds. Try searching trips by aimedDepartureTime!");
+            logger.warn("tripIds: {}", tripIds);
+
+        }
         return map;
 
+    }
+
+    public Map<String, Map<Integer, StopsTimeData>> readStopsTimeDataOfTripFromFile2(Set<Tuple2<String, String>> trips, String date) {
+
+        //List<String> lines = readStopTimesFile(trips);
+        return  null;
     }
 
     private void addToMap(StopsTimeData stopsTimeData, Map<String, Map<Integer, StopsTimeData>> map) {
@@ -149,15 +163,17 @@ public class Stops {
      * @param map
      * @return map of tripId to a map. The inner map is a map of stopId to Stop record.
      */
-    public Map<String, Map<Integer, StopsTimeData>> generateStopsMap(Set<String> trip_ids, String date, String gtfsDir, Map<String, Map<Integer, StopsTimeData>> map ) {
+    public Map<String, Map<Integer, StopsTimeData>> generateStopsMap(Set<String> trip_ids, String date, String gtfsDir ) {
         //Stops stops = new Stops(gtfsDir + "/" + "gtfs" + date + ".zip") ;
-        this.gtfsZipFileDirFullPath = gtfsDir + "/";
-        this.gtfsZipFileName = "gtfs" + date + ".zip";
-        return readStopsTimeDataOfTripFromFile(trip_ids, map, date);
+//        this.gtfsZipFileDirFullPath = gtfsDir + "/";
+//        this.gtfsZipFileName = "gtfs" + date + ".zip";
+        return readStopsTimeDataOfTripFromFile(trip_ids, date);
+
     }
 
-
-
+    public Map<String, Map<Integer, StopsTimeData>> generateStopsMap(Set<Tuple2<String, String>> trips, String date ) {
+        return readStopsTimeDataOfTripFromFile2(trips, date);
+    }
 
     Map<String, Map<String, StopData>> stopsMapsForAllDates = new HashMap<>();
 

@@ -21,6 +21,7 @@ public class TripData {
     public Map<Integer, StopsTimeData> stopsTimeData;
 
     String siriTripId;
+    String alternateTripId = "";
     String vehicleId;
     List<SiriReading> siri1;
     SiriFeatureCollection siri;
@@ -47,6 +48,14 @@ public class TripData {
 
     }
     */
+
+    public String getAlternateTripId() {
+        return alternateTripId;
+    }
+
+    public void setAlternateTripId(String alternateTripId) {
+        this.alternateTripId = alternateTripId;
+    }
 
     public String getRouteId() {
         return routeId;

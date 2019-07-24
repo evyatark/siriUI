@@ -1,0 +1,72 @@
+<html>
+<head>
+	<title>Bootstrap-table filter example</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.10.0/bootstrap-table.min.css">
+    <link href="./assets/css/bootstrap-override.css" rel="stylesheet" type="text/css">
+    <link href="./assets/css/select2.css" rel="stylesheet" type="text/css">
+	<link href="./assets/css/jquery-ui-1.10.3.css" rel="stylesheet" type="text/css">
+	<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="./dist/bootstrap-table-filter.min.css">
+</head>
+<body>
+	
+	<div class="container">
+
+		
+	
+		<h3>Example: Simple controls</h3>
+		<p>Basic bootstrap-table filter controls initialize</p>
+	
+		<table id="itemsTable" class="table"
+			data-toggle="table"
+			data-url="./data.json"
+			data-height="720"
+			data-filter="true"
+			data-icons-prefix="fa">
+			<thead>
+				<tr>
+					<th data-field="id" data-align="center" data-sortable="true">Item ID</th>
+                    <th data-field="name" data-align="center" data-sortable="true" data-filter-type="input">Item Name</th>
+                    <th data-field="price" data-align="left" data-width="320" data-sortable="true" data-filter-type="select" data-filter-data="var:itemPrices">Item Price</th>
+                    <th data-field="date" data-align="center" data-sortable="true" data-filter-type="input">Item Date</th>
+				</tr>
+			</thead>
+		</table>
+			
+
+		
+		
+		
+	</div>
+    
+    <script src="https://code.jquery.com/jquery-1.12.0.min.js"></script>
+    <!-- <script src="./assets/js/jquery-1.11.3.js"></script> -->
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+	<!-- <script src="./assets/js/bootstrap.js"></script> -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.10.0/bootstrap-table.min.js"></script>
+	<!-- <script src="./assets/js/bootstrap-table.js"></script> -->
+	<script src="./assets/js/bootstrap-table-en-US.js"></script>
+	<script src="./assets/js/select2.js"></script>
+	<!-- <script src="./assets/js/jquery-ui-1.10.3.min.js"></script> -->
+    <!-- <script src="../src/bootstrap-table-filter.js"></script> -->
+    <script src="./dist/bootstrap-table-filter.min.js"></script>
+	<script type="text/javascript">
+        var itemPrices = [{ id: 1, text: '$1' }, { id: 2, text: '$2' }];
+		$('#itemsTable').on('column-search.bs.table', function () {
+				console.log('hello event');
+        });
+        $('#itemsTable').on('click', '.clickable-row', function (event) {
+            $(this).addClass('active').siblings().removeClass('active');
+        });
+    </script>
+    <!--
+    <script src="https://code.jquery.com/jquery-1.12.0.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.10.0/bootstrap-table.min.js"></script>
+	<script src="./dist/bootstrap-table-filter.min.js"></script>
+    <script src="./assets/js/bootstrap-table-en-US.js"></script></body>
+    <script src="./assets/js/select2.js"></script>
+    -->
+</html>

@@ -1,5 +1,6 @@
 package org.hasadna.gtfs.service;
 
+import io.vavr.Tuple2;
 import io.vavr.collection.List;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
@@ -32,6 +33,7 @@ public class ReadZipFile {
         final ZipFile file = new ZipFile(filePath);
         ZipEntry entry = findEntry(file.entries(), fileInsideZip);
         if (entry == null) return null;
+        // TODO cache the lines of the file (especially for stop_times.txt which is a very big file (~1GB)
         return readFromInputStream(file.getInputStream(entry));
     }
 
@@ -95,21 +97,13 @@ public class ReadZipFile {
      ****************************/
 
     public Stream<String> makatLinesFromFile(String fileFullPath) {
-        // client code:
-        String date = "2019-05-17";
-        String directoryOfMakatFile = "/home/evyatar/logs/makat/";
-        String makatZipFileName = "TripIdToDate" + date + ".zip";    // TripIdToDate2019-05-17.zip
-        String makatZipFileFullPath = directoryOfMakatFile + File.separatorChar + makatZipFileName;
-        fileFullPath = makatZipFileFullPath ;
-        ////// end client code
-        io.vavr.collection.Stream<String> lines = io.vavr.collection.Stream.empty();
+        Stream<String> lines = Stream.empty();
         try {
-            lines = readZipFileV(fileFullPath, "TripIdToDate.txt")
-                    .collect(io.vavr.collection.Stream.collector());
+            lines = readZipFile(fileFullPath, "TripIdToDate.txt");
         } catch (Exception ex) {
-
+            // absorb on purpose
         }
-        return lines.toJavaStream();
+        return lines;
     }
 
 
@@ -213,6 +207,21 @@ public class ReadZipFile {
     }
 
 
+    private boolean lineBelongsToAnyTripId2(final Set<Tuple2<String, String>> trips, final String line) {
+        // this works fine, but is a bit slow
+        //return tripIds.stream().anyMatch(tripId -> line.startsWith(tripId + "_"));
+        // this saves a few seconds:
+        for (Tuple2<String, String> trip : trips) {
+            // TODO trip._2 is aimedDeparture of trip, trip._1 is tripId
+//            if (line.startsWith(tripId + "_")) {
+//                return true;
+//            }
+        }
+        // TODO check if following code improves performance:
+        //String lineStart = line.split("_")[0];
+        //return (tripIds.contains(lineStart));
+        return false;
+    }
     /****************************
      *
      *  Routes.txt
@@ -223,6 +232,7 @@ public class ReadZipFile {
         io.vavr.collection.Stream<String> lines = io.vavr.collection.Stream.empty();
         try {
             lines = readZipFileV(fileFullPath, "routes.txt")
+                    .drop(1)    // first row in file is the headers
                     .collect(io.vavr.collection.Stream.collector());
         } catch (Exception ex) {
 

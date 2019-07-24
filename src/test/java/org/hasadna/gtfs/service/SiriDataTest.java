@@ -311,7 +311,7 @@ public class SiriDataTest {
         return count.incrementAndGet();
     }
 
-
+/*
     @Test
     public void test14() {
         java.util.Map<String, java.util.Map<Integer, StopsTimeData>> map =
@@ -325,9 +325,10 @@ public class SiriDataTest {
         Assertions.assertThat(size).isGreaterThanOrEqualTo(0);
 
     }
-
+*/
     @Test
     public void test15() {
+
         stops.gtfsZipFileName = "gtfs2019-03-03.zip";
         String TRIP_ID = "36619570" ;
         java.util.List<String> linesOfTrip = stops.readStopTimesFile(List.of(TRIP_ID).toJavaSet()).collect(Collectors.toList());
