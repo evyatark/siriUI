@@ -93,7 +93,7 @@ public class GtfsControllerTest {
     }
 
     @Test
-    public void testCompareGtfsSiriForSeveralRoutesAndDates() {
+    public void testCompareGtfsSiriForSeveralRoiutesAndDates() {
         List<String> dates = IntStream.rangeClosed(1,5).mapToObj(i -> "2019-07-" + padNumber(i,2)).collect(Collectors.toList());
         dates.forEach(date -> compareGtfsSiriForAllBSRoutesAtDate(date));
     }
@@ -167,12 +167,12 @@ public class GtfsControllerTest {
                 .stream()
                 .map(routeId -> {
                     try {
+                        logger.info("route= {}", routeId);
                         String json = siriData.convertToJson(allFromTripIdToDate.get(routeId));
                         Tuple3<String, String, String> result = Tuple.of(routeId,
                                 json,   // instead of gtfsController.retrieveTripsOfRouteFromGtfsTripIdToDate(routeId, date),
                                 gtfsController.retrieveAllTripsFromSiri(routeId, date));
-                        logger.error("route= {}", routeId);
-                        logger.error("{\"route\": {}, \"date\": \"{}\", \"gtfs\":{} , \"siri\":{}}", routeId, date,result._2, result._3);
+                        logger.info("{\"route\": {}, \"date\": \"{}\", \"gtfs\":{} , \"siri\":{}}", routeId, date,result._2, result._3);
                         return result;
                     } catch (JsonProcessingException e) {
                         return Tuple.of(routeId, "error", "error");

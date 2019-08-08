@@ -232,8 +232,12 @@ public class SiriDataTest {
 
     @Test
     public void test11() {
-        List<String> dates = List.of("2019-03-31");//, "2019-04-01", "2019-04-02", "2019-04-03", "2019-04-04", "2019-04-05");
-        List<String> routes = List.of("15531");//, "15532");
+        stops.gtfsZipFileDirFullPath = "/home/evyatar/sivan/may25/" ;
+        stops.gtfsZipFileName = "gtfs2019-05-25" + ".zip";
+        siriData.directoryOfMakatFile = "/home/evyatar/sivan/may25/";
+
+        List<String> dates = List.of("2019-05-25");//, "2019-04-01", "2019-04-02", "2019-04-03", "2019-04-04", "2019-04-05");
+        List<String> routes = List.of("8176");//, "15532");
         dates.forEach(date ->
             routes
                     .map(routeId -> siriData.dayResults( routeId, date))

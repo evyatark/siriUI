@@ -20,10 +20,14 @@ public class MemoryDB {
     @Value("${halo.db.dir}")
     public String directoryOfHaloDB;
 
+    @Value("${halo.db.enable:false}")
+    public boolean enabled;
+
     HaloDB db = null;
 
     @PostConstruct
     public void init() {
+        if (!enabled) return;
         HaloDBOptions options = new HaloDBOptions();
         options.setMaxFileSize(1024 * 1024 * 1024);
         options.setMaxTombstoneFileSize(64 * 1024 * 1024);
@@ -50,6 +54,9 @@ public class MemoryDB {
     }
 
     public void writeKeyValue(String key, String value) {
+        if (!enabled) return;
+
+        if (db == null) return;
         logger.debug("writing key {} to memory DB", key);
         try {
             byte[] key1 = key.getBytes(Charset.forName("UTF-8"));
@@ -62,11 +69,16 @@ public class MemoryDB {
     }
 
     public void displayStats() {
+        if (!enabled) return;
+
         HaloDBStats stats = db.stats();
         logger.debug("halo DB stats: {}", stats.toString());
     }
 
     public String readKey(String key) {
+        if (!enabled) return null;
+
+        if (db == null) return null;
         try {
             byte[] key1 = key.getBytes(Charset.forName("UTF-8"));
             byte[] value1 = db.get(key1);

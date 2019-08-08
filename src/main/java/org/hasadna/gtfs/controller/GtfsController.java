@@ -149,7 +149,7 @@ public class GtfsController {
 
         final String key = generateKey(DATA_KIND, routeId, date);
         String fromDB = db.readKey(key);
-        if (fromDB != null) {
+        if ((fromDB != null) && !"[]".equals(fromDB)) {
             logger.debug("found value for key {} in memoryDB", key);
             logger.info("<=== siri/day/{}/{}",routeId,date);
             return fromDB;
