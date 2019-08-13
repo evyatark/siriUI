@@ -45,9 +45,10 @@ public class Routes {
 
     public java.util.List<RouteData> allRoutesByDate(String date) {
         final String gtfsZipFileName = "gtfs" + date + ".zip";
-        final String originalGtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
-
-        String gtfsZipFileFullPath = Utils.ensureFileExist(originalGtfsZipFileFullPath);
+        String gtfsZipFileFullPath = Utils.findFile(gtfsZipFileDirFullPath, gtfsZipFileName);
+        if (null == gtfsZipFileFullPath) {
+            gtfsZipFileFullPath = Utils.ensureFileExist(Utils.createFilePath(gtfsZipFileDirFullPath, gtfsZipFileName));
+        }
         logger.debug("collect routes...");
         java.util.List<RouteData> routes = collectAllRoutes(gtfsZipFileFullPath);
         logger.debug("{} routes.", routes.size());

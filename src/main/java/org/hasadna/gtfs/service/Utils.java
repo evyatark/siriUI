@@ -1,9 +1,13 @@
 package org.hasadna.gtfs.service;
 
+import io.vavr.collection.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class Utils {
 
@@ -35,4 +39,25 @@ public class Utils {
     public static String extractAimedDeparture(String line) {
         return line.split(",")[6];
     }
+
+
+
+
+    public static String findFile(final String possibleDirectories, final String fileName) {
+        List<String> dirs = List.of(possibleDirectories.split(File.pathSeparator));
+        for (String dir : dirs) {
+            final String fullPath = dir + File.separatorChar + fileName;
+            if (Files.isRegularFile(Paths.get(fullPath))) {
+                return fullPath;
+            }
+        }
+        return null;
+    }
+
+    public static String createFilePath(final String possibleDirectories, final String fileName) {
+        List<String> dirs = List.of(possibleDirectories.split(File.pathSeparator));
+        if (dirs.isEmpty()) return fileName;
+        return dirs.get(0) + File.separatorChar + fileName;
+    }
+
 }

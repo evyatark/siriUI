@@ -54,6 +54,12 @@ function displaySiriPointsOnMap(siriPoints, iconFileName) {
                 title: title,
                 riseOnHover: true
             }).addTo(mymap).bindPopup("<b>time:" + siriPoint.properties.time_recorded + "</b>");
+            // + siriPoint.timestamp + siriPoint.recalculatedETA
+        // + calculate distance from point to nearest stop, or
+        // calculate the distance on the shape from point to nearest stop, or
+        // if the point is near enough to any stop, compare timestamp+ETA to those of the stop
+        // calculate if the point is on the shape (if not - is it near enough), or
+        // if it is on the shape, calculate the distance from stop#1 on the shape
             // marker.on('mouseover', function(e) {
             //     let sp = siriPoint.properties;
             //     parent.document.getElementById('siri_current_time').value = 'Time: '+sp.time_recorded;
@@ -63,9 +69,7 @@ function displaySiriPointsOnMap(siriPoints, iconFileName) {
             //     parent.document.getElementById('siri_estimated_arrival').value = "אמור להגיע ב 07:14";//sp.properties.missing;
             // }).on('mouseout', clearSiriPointDisplay);
             return marker;
-        }
-        )
-    ;
+        });
     return siriMarkers;
 }
 
@@ -105,10 +109,7 @@ function displayStopsOnMap(stops, stopIconFileName) {
     const stopsMarkers = stops.features.map(stop => {
 
             const coordinates = stop.geometry.coordinates;
-            const marker = L.marker(coordinates, {icon: iconYellow}).addTo(mymap).bindPopup("<b>code:" +
-                stop.properties.stop_code +
-                "</b><br>id:" +
-                stop.properties.stop_id);
+            const marker = L.marker(coordinates, {icon: iconYellow}).addTo(mymap).bindPopup(preparePopup(stop.properties));
             marker.on('mouseover', function (e) {
                 let x = parent.document.getElementById('gtfs_stop_code');
                 clog("mouse over stop " + stop.properties.stop_sequence);
@@ -124,6 +125,22 @@ function displayStopsOnMap(stops, stopIconFileName) {
         }
     );
     return stopsMarkers;
+}
+
+function preparePopup(stopProp) {
+    if (!stopProp) return "unknown";
+    let plannedTime = "<br>planned arrival/departure:" + stopProp.arrivalTime;
+    if (stopProp.arrivalTime != stopProp.departureTime) {
+        plannedTime = "<br>planned arrival: " + stopProp.arrivalTime + "<br>planned departure:" + stopProp.departureTime;
+    }
+    const s = "<b>" +
+        "stop #" + stopProp.stop_sequence +    //stopProp.trip_id
+        "<br>stop name:</b>" + stopProp.stop_name +
+        "<br><b>description:</b>" + stopProp.stop_desc + //stop_id
+        "<br><b>stop code:</b>" + stopProp.stop_code +
+        "<br><b>distance:</b>" + stopProp.distance +
+        plannedTime;
+    return s;
 }
 
 function clearStopDisplay(event) {
@@ -147,6 +164,15 @@ function askDisplayAll(gtfsTripObject, setView) {
     }
     const route1 = displayAll(mymap, gtfsTripObject, 'black');
     clog("add route to map by tripId...");
+    // object added to map looks like:
+    // {
+    //     routeId: tripObject.routeId,
+    //         tripId: tripObject.siriTripId,
+    //     dns: tripObject.dns,
+    //     route: polyline,
+    //     stops: stopsMarkers,
+    //     siri: siriMarkers
+    // }
     mapAllRoutesDisplayed.set(tripId, route1);
     clog("added. map now contains " + mapAllRoutesDisplayed.size);
     if (setView) {
@@ -166,8 +192,14 @@ function displayAll(mymap, tripObject, color) {
     if (tripObject.stops) {
         stopsMarkers = displayStopsOnMap(tripObject.stops, "yellow-flag.svg");
     }
-    const siriMarkers = displaySiriPointsOnMap(tripObject.siri.features, color + '-pin.svg');   // color of the markers
+    let siriMarkers = null;
+    if (tripObject.siri) {
+        siriMarkers = displaySiriPointsOnMap(tripObject.siri.features, color + '-pin.svg');   // color of the markers
+    }
     return {
+        routeId: tripObject.routeId,
+        tripId: tripObject.siriTripId,
+        dns: tripObject.dns,
         route: polyline,
         stops: stopsMarkers,
         siri: siriMarkers
@@ -176,17 +208,35 @@ function displayAll(mymap, tripObject, color) {
 
 function removeTripFromMap(tripId) {
     if (tripId) {
-        removeAll(mapAllRoutesDisplayed.get(tripId));
+        clog("removing trip tripId " + tripId + " from display...");
+        // object retrieved from map looks like:
+        // {
+        //     routeId: tripObject.routeId,
+        //     tripId: tripObject.siriTripId,
+        //     dns: tripObject.dns,
+        //     route: polyline,
+        //     stops: stopsMarkers,
+        //     siri: siriMarkers
+        // }
+        const tripObject = mapAllRoutesDisplayed.get(tripId);
+        clog("trip object=" + tripObject);
+        removeAll(tripObject);
         clog("remove tripId " + tripId);
     }
 }
 
-function removeAll(routeObject) {
-    if (routeObject) {
-        clog("removing route " + routeObject);
+function removeAll(tripObject) {
+    if (tripObject) {
+        clog("removing from display markers of trip " + tripObject.tripId);
+        if (tripObject.dns) {
+            clog("that trip was DNS, so nothing to remove?");
+            //return;
+        }
         //routeObject.route.removeFrom(mymap);   //: polyline,
         //routeObject.stops.forEach(stop => stop.removeFrom(mymap));   //: stopsMarkers,
-        routeObject.siri.forEach(point => point.removeFrom(mymap));    //: siriMarkers
+        if (tripObject.siri) {
+            tripObject.siri.forEach(point => point.removeFrom(mymap));    //: siriMarkers
+        }
     }
 }
 

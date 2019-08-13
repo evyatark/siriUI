@@ -17,6 +17,7 @@ public class TripData {
     String gtfsETA;
     String gtfsTripId;
     Boolean suspicious ;
+    Boolean dns ;           // DNS = did Not Start!
 
     public Map<Integer, StopsTimeData> stopsTimeData;
 
@@ -175,6 +176,14 @@ public class TripData {
 
     public void setStops(StopFeatureCollection stops) {
         this.stops = stops;
+    }
+
+    public Boolean getDns() {
+        return dns;
+    }
+
+    public void setDns(Boolean dns) {
+        this.dns = dns;
     }
 
     @Override

@@ -24,15 +24,27 @@ function populateTripsGrid(routeId, allTripsOfDay, date) {
         let tripId = lineDetails.gtfsTripId;
         if (i % 1000 == 0) {clog(i);}
         let oad = lineDetails.originalAimedDeparture;
-        let status = lineDetails.status;
+        let status = lineDetails.status; if (status==undefined) {status="";}
         let progress = lineDetails.progress;
         let agency = lineDetails.agencyName;
         let desc = lineDetails.description;
         let actualDeparture = lineDetails.actualDeparture;
-        let suspicious = lineDetails.suspicious;
-        if (suspicious) {status = "Suspicious";} else {status = "OK";}
+        if (lineDetails.suspicious) {
+            status = "Suspicious";
+        }
+        if (lineDetails.dns) {
+            status = status + " " + "DNS";
+        }
         let label = "lable-info";
-        if (suspicious) {label = "label-warning";}
+        if (lineDetails.suspicious) {
+            label = "label-warning";
+        }
+        if (lineDetails.dns) {
+            label = "label-danger";
+        }
+        else {
+            status = "OK";
+        }
         let tr1 = ' <tr class="clickable warning dropdown-deliverable" data-for="#details_' + i + '">\n' +
             '                <td>' + shortName + '</td>\n' +
             '                <td>' + tripId + '</td>\n' +

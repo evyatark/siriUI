@@ -36,6 +36,9 @@ function populateTripsGrid(allTrips) {
         let trip = trips[i];
         let tripId = trip.siriTripId;
         let vid = trip.vehicleId;
+        if (true == trip.dns) {
+            vid = "DNS";
+        }
         let oad = trip.originalAimedDeparture;
         // generate td
         let td = "<tr class=\"clickable-row\"><td>" + oad + "</td><td>" + tripId + "</td><td>" + vid + "</td></tr>";

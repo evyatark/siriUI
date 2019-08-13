@@ -49,6 +49,9 @@ public class SiriData {
     @Value("${tripIdToDate.ZipFileDirectory}")
     public String directoryOfMakatFile;
 
+    @Value("${enable.gtfs.stops:true}")
+    public boolean displayStops;
+
     @Value("${search.stops.in.gtfs:false}")
     public boolean searchGTFS ;
 
@@ -317,31 +320,6 @@ public class SiriData {
             logger.warn("WARNING: empty or null trips data!");
             return new ArrayList<>() ;
         }
-/*
-        java.util.List<TripData> tripsData2 = buildTripsFromTripIdToDate(routeId, date); // this includes using TripIdToDate file to add alternate tripId;        tripsData = enrichAlternateTripId(tripsData);
-
-        // merge lists (by tripId and/or departureTime
-        tripsData.addAll(tripsData2);   // now tripsData contains all elements from both lists
-        Collection<TripData> list = tripsData.stream().collect(
-                Collectors.toMap(tripData -> tripData.originalAimedDeparture,
-                        Function.identity(),
-                        (left, right) -> mergeTripData(left, right)
-//        {
-//                            left.setAmount(left.getAmount().add(right.getAmount()));
-//                            return left;
-//                        }
-                        )
-        ).values();
-
-        tripsData = List.ofAll(list)
-                .filter(td -> calcDayInWeek(date).equals(td.dayOfWeek))
-                .toJavaList();
-
-        if ((tripsData == null) || tripsData.isEmpty()) {
-            logger.warn("WARNING: empty or null trips data!");
-            return new ArrayList<>() ;
-        }
-*/
         displaySuspiciousTrips(tripsData);
 
         // without the GTFS reading, we have a nice JSON, we only miss trips that were planned but not executed at all!
@@ -350,8 +328,12 @@ public class SiriData {
         // (or we can read GTFS files and calculate again. Which is a small addition to
         // reading the time consuming Stops data and times that we can do now if searchGTFS is true)
 
-        // add GTFS data
-        //tripsData = enrichTripsWithDataFromGtfs(tripsData, date);
+        if (displayStops) {
+            // add GTFS data
+            logger.info("processing stops of route {} ...", routeId);
+            tripsData = enrichTripsWithDataFromGtfs(tripsData, date);
+            logger.info("... completed! processing stops of route {}.", routeId);
+        }
 
         // add data from schedule file
         //tripsData = enrichTripsWithDataFromSchedules(tripsData, date);
@@ -512,6 +494,14 @@ public class SiriData {
                     .map(td -> td.siri.features.length).get(0);
             logger.info("trip {} is suspicious: has only {} GPS points", tripId, numberOfSiriPoints);
         });
+
+        List<String> dnsTrips =
+                List.ofAll(
+                        tripsData.stream()
+                                .filter(trip -> "true".equals( trip.dns))
+                                .map(tripData -> tripData.siriTripId) //using vavr instead of Java List
+                );
+        logger.info("DNS trips:{}", dnsTrips);
     }
 
 
@@ -615,8 +605,22 @@ public class SiriData {
      */
     private java.util.List<TripData> completeWithGtfsData(java.util.List<TripData> tripsAccordingToSiri, java.util.List<TripData> tripsAccordingToGtfsTripIdToDate) {
         java.util.List<String> gtfsHours = tripsAccordingToGtfsTripIdToDate.stream().map(tripData -> tripData.getOriginalAimedDeparture()).collect(Collectors.toList());
-        java.util.List<String> siriHours = tripsAccordingToSiri.stream().map(tripData -> tripData.getOriginalAimedDeparture()).collect(Collectors.toList());
-        List<String> gtfsHoursNotInSiri = List.ofAll(gtfsHours).removeAll(hour -> siriHours.contains(hour));
+        java.util.List<String> siriHours1 = tripsAccordingToSiri.stream().map(tripData -> tripData.getOriginalAimedDeparture()).collect(Collectors.toList());
+        // in siri v2, hour will be of the format 2019-07-28T06:45:00, so in order to compare with gtfs hour 06:45 we will strip date part from siri hour
+        java.util.List<String> fixedSiriHours = List.ofAll(siriHours1)
+                .map(hour -> {
+                        if (hour.contains("T")) {
+                            String hourPart = hour.split("T")[1];
+                            // assuming exactly the format 06:45:00, we take 5 first characters
+                            hourPart = hourPart.substring(0,5);
+                            return hourPart;
+                        }
+                        else {
+                            return hour;
+                        }
+                    })
+                .asJava();
+        List<String> gtfsHoursNotInSiri = List.ofAll(gtfsHours).removeAll(hour -> fixedSiriHours.contains(hour));
 
         List<TripData> siri = List.ofAll(tripsAccordingToSiri);
         for (String hour : gtfsHoursNotInSiri) {
@@ -624,7 +628,8 @@ public class SiriData {
                 List.ofAll(tripsAccordingToGtfsTripIdToDate)
                     .find(tripData -> hour.equals(tripData.getOriginalAimedDeparture()))
                     .map(tripData -> {
-                        tripData.suspicious = true; // TODO actually we would prefer having here an indication that trip DNS)
+                        tripData.dns = true;
+                        //tripData.suspicious = true; // TODO actually we would prefer having here an indication that trip DNS)
                         return tripData;
                     }).get();
             siri = siri.append(tr);
@@ -726,7 +731,7 @@ public class SiriData {
         java.util.List<TripData> missingInSiri = new ArrayList<>();
         for (TripData titdTripData : tripsAccordingToGtfsTripIdToDate) {
             if (!containsByTripId(tripsAccordingToSiri, titdTripData)) {
-                titdTripData.suspicious = true; // actually "DNS", not suspicious
+                titdTripData.dns = true;
                 missingInSiri.add(titdTripData);
             }
         }

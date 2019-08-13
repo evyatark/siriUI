@@ -41,7 +41,12 @@ public class Shapes {
 
             ReadZipFile rzf = new ReadZipFile();
             String gtfsZipFileName = "gtfs" + date + ".zip";
-            String gtfsZipFileFullPath = directoryOfGtfsFile + File.separatorChar + gtfsZipFileName;
+            String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
+            if (null == gtfsZipFileFullPath) {
+                logger.warn("could not find GTFS file of date {}. Searched this path: {}", date, directoryOfGtfsFile);
+                return "[]";
+            }
+                    //directoryOfGtfsFile + File.separatorChar + gtfsZipFileName;
 
             //read trips file, find line that contains routeId
             // you get 2 lines but in both of them it is the same shape, so take the first.
