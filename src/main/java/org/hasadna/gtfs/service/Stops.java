@@ -44,14 +44,27 @@ public class Stops {
     }
 
     private Stream<String> readStopsFile() {
-        String originalGtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
-        String gtfsZipFileFullPath = Utils.ensureFileExist(originalGtfsZipFileFullPath);
+        //String originalGtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        //String gtfsZipFileFullPath = Utils.ensureFileExist(originalGtfsZipFileFullPath);
+        String gtfsZipFileFullPath = Utils.findFile(gtfsZipFileDirFullPath, gtfsZipFileName);
+        if (null == gtfsZipFileFullPath) {
+            gtfsZipFileFullPath = Utils.ensureFileExist(Utils.createFilePath(gtfsZipFileDirFullPath, gtfsZipFileName));
+        }
+        if (null == gtfsZipFileFullPath) {
+            logger.warn("some problem! no GTFS file found in {}", gtfsZipFileDirFullPath);
+            return Stream.empty();
+        }
         return (new ReadZipFile()).stopLinesFromFile(gtfsZipFileFullPath).toJavaStream();
     }
 
 
     private Stream<String> readRoutesFile() {
-        String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        //String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        String gtfsZipFileFullPath = Utils.findFile(gtfsZipFileDirFullPath, gtfsZipFileName);
+        if (null == gtfsZipFileFullPath) {
+            logger.warn("could not find GTFS file of date {}. Searched this path: {}", gtfsZipFileName, gtfsZipFileDirFullPath);
+            return Stream.empty();
+        }
         return (new ReadZipFile()).stopLinesFromFile(gtfsZipFileFullPath).toJavaStream();
     }
 
@@ -59,7 +72,12 @@ public class Stops {
 
 
     private io.vavr.collection.Stream<String> readStopTimesFile() {
-        String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        //String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        String gtfsZipFileFullPath = Utils.findFile(gtfsZipFileDirFullPath, gtfsZipFileName);
+        if (null == gtfsZipFileFullPath) {
+            logger.warn("could not find GTFS file of date {}. Searched this path: {}", gtfsZipFileName, gtfsZipFileDirFullPath);
+            return io.vavr.collection.Stream.empty();
+        }
         return (new ReadZipFile()).stopTimesLinesFromFile(gtfsZipFileFullPath);
     }
 
@@ -69,8 +87,13 @@ public class Stops {
      * @return
      */
     public List<String> readStopTimesFile(Set<String> tripIds) {
-        String originalGtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
-        String gtfsZipFileFullPath = Utils.ensureFileExist(originalGtfsZipFileFullPath);
+        //String originalGtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+        //String gtfsZipFileFullPath = Utils.ensureFileExist(originalGtfsZipFileFullPath);
+        String gtfsZipFileFullPath = Utils.findFile(gtfsZipFileDirFullPath, gtfsZipFileName);
+        if (null == gtfsZipFileFullPath) {
+            gtfsZipFileFullPath = Utils.ensureFileExist(Utils.createFilePath(gtfsZipFileDirFullPath, gtfsZipFileName));
+        }
+
         logger.info("reading file {}", gtfsZipFileFullPath);
         return (new ReadZipFile()).stopTimesLinesOfTripsFromFile(gtfsZipFileFullPath, tripIds);
     }
@@ -159,11 +182,9 @@ public class Stops {
      *
      * @param trip_ids
      * @param date
-     * @param gtfsDir
-     * @param map
      * @return map of tripId to a map. The inner map is a map of stopId to Stop record.
      */
-    public Map<String, Map<Integer, StopsTimeData>> generateStopsMap(Set<String> trip_ids, String date, String gtfsDir ) {
+    public Map<String, Map<Integer, StopsTimeData>> generateStopsMap1(Set<String> trip_ids, String date ) {
         //Stops stops = new Stops(gtfsDir + "/" + "gtfs" + date + ".zip") ;
 //        this.gtfsZipFileDirFullPath = gtfsDir + "/";
 //        this.gtfsZipFileName = "gtfs" + date + ".zip";

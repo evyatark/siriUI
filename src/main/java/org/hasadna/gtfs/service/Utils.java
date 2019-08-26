@@ -19,6 +19,9 @@ public class Utils {
         while (!f.exists()) {
             logger.warn("file {} not found", f.getName());
             fileThatActuallyExists = findPreviousDate(fileThatActuallyExists);
+            if (null == fileThatActuallyExists) {
+                break;
+            }
             f = new File(fileThatActuallyExists);
         }
         logger.info("using file {}", fileThatActuallyExists);
@@ -29,6 +32,9 @@ public class Utils {
         String[] strs = gtfsZipFileFullPath.split(".zip")[0].split("-");
         String day = strs[strs.length - 1];
         String previousDay = Integer.toString( Integer.parseInt(day) - 1 );
+        if ("0".equals(previousDay)) {
+            return null;
+        }
         if (previousDay.length() == 1) {
             previousDay = "0" + previousDay;
         }
@@ -55,6 +61,7 @@ public class Utils {
     }
 
     public static String createFilePath(final String possibleDirectories, final String fileName) {
+        // TODO solve problem!!! dirs.get(0) is not where all GTFS files exist
         List<String> dirs = List.of(possibleDirectories.split(File.pathSeparator));
         if (dirs.isEmpty()) return fileName;
         return dirs.get(0) + File.separatorChar + fileName;

@@ -4,6 +4,11 @@ import com.oath.halodb.HaloDB;
 import com.oath.halodb.HaloDBException;
 import com.oath.halodb.HaloDBOptions;
 import com.oath.halodb.HaloDBStats;
+import org.dizitart.no2.Document;
+import org.dizitart.no2.Nitrite;
+import org.dizitart.no2.NitriteCollection;
+import org.dizitart.no2.tool.ExportOptions;
+import org.dizitart.no2.tool.Exporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +16,9 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.nio.charset.Charset;
+import java.util.Iterator;
+
+import static org.dizitart.no2.filters.Filters.eq;
 
 @Component
 public class MemoryDB {
@@ -24,6 +32,7 @@ public class MemoryDB {
     public boolean enabled;
 
     HaloDB db = null;
+    Nitrite ndb = null;
 
     @PostConstruct
     public void init() {
@@ -51,6 +60,17 @@ public class MemoryDB {
 
         //TODO where to close db?
         //db.close();
+
+        // nitrite db
+        ndb = Nitrite.builder()
+                .filePath("/tmp/nitrite.db")
+                .openOrCreate();
+//        NitriteCollection collection1 = ndb.getCollection("shapes");
+//        NitriteCollection collection2 = ndb.getCollection("siri");
+//
+//        Exporter exporter = Exporter.of(ndb);
+//        exporter.exportTo("/tmp/export.txt");
+
     }
 
     public void writeKeyValue(String key, String value) {
@@ -66,6 +86,21 @@ public class MemoryDB {
         } catch (Exception e) {
             logger.error("unhandled exception when trying to write key " + key, e);
         }
+
+        if (key.startsWith("shape")) {
+            ndb.getCollection("shapes").insert(Document.createDocument("key", key).put("value", value));
+        }
+        else {
+            ndb.getCollection("siri").insert(Document.createDocument("key", key).put("value", value));
+        }
+        // after each write export to txt file - temporary!!!
+        ExportOptions exportOpt = new ExportOptions();
+        exportOpt.setExportData(true);
+        exportOpt.setExportIndices(false);
+        Exporter exporter = Exporter.of(ndb).withOptions(exportOpt);
+        exporter.exportTo("/tmp/export.txt");
+
+
     }
 
     public void displayStats() {
@@ -79,6 +114,30 @@ public class MemoryDB {
         if (!enabled) return null;
 
         if (db == null) return null;
+
+        // Nitrite
+        try {
+            if (key.startsWith("shape")) {
+                NitriteCollection c = ndb.getCollection("shapes");
+                Iterator<Document> it = c.find(eq("key", key)).iterator();
+                if (it.hasNext()) {
+                    logger.warn("found key {} in Nitrite shapes", key);
+                    return it.next().get("value", String.class);
+                }
+            }
+            else {
+                NitriteCollection c = ndb.getCollection("siri");
+                Iterator<Document> it = c.find(eq("key", key)).iterator();
+                if (it.hasNext()) {
+                    logger.warn("found key {} in Nitrite siri", key);
+                    return it.next().get("value", String.class);
+                }
+            }
+            // reached here --> Nitrite does not have this key. coninue to HaloDB
+        }
+        catch (Exception ex) {
+
+        }
         try {
             byte[] key1 = key.getBytes(Charset.forName("UTF-8"));
             byte[] value1 = db.get(key1);

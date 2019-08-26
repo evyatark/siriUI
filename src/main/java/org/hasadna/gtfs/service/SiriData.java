@@ -40,8 +40,9 @@ public class SiriData {
      * This is the directory with all GTFS files of a specific month.
      * (it is also possible to put all GTFS files of several/all months in the same directory)
      */
-    @Value("${gtfsZipFileDirectory}")
-    public String gtfsZipFileDirFullPath = "";          // :/home/evyatar/logs/work/2019-04/gtfs/
+    // not needed
+//    @Value("${gtfsZipFileDirectory}")
+//    public String gtfsZipFileDirFullPath1 = "";          // :/home/evyatar/logs/work/2019-04/gtfs/
 
     @Value("${siriGzFilesDirectory}")
     public String siriLogFilesDirectory;    // /home/evyatar/logs/data/
@@ -253,8 +254,16 @@ public class SiriData {
     public Map<String, io.vavr.collection.Stream<String>> findAllTrips(final String routeId, final String date) {
         // names: list of names of all siri_rt_data files from the specified date
         // (assumes we won't have more than 20 files of siri results in the same date)
-        List<String> namesOldFormat = List.range(0, 20).map(i -> siriLogFilesDirectory + "siri_rt_data." + date + "." + i + ".log.gz");  // 2019-04-04
-        List<String> names = List.range(0, 20).map(i -> siriLogFilesDirectory + "siri_rt_data_v2." + date + "." + i + ".log.gz");  // 2019-04-04
+        String fileName = "siri_rt_data_v2." + date + "." + 0 + ".log.gz";
+        String fullPath = Utils.findFile(siriLogFilesDirectory, fileName);
+        if (fullPath == null) {
+            logger.warn("could not find file {} in path {}", fileName, siriLogFilesDirectory);
+        }
+        else {
+            logger.warn("found file {} in path {}, full path is {}", fileName, siriLogFilesDirectory, fullPath);
+        }
+        List<String> namesOldFormat = List.range(0, 20).map(i -> Utils.findFile(siriLogFilesDirectory, "siri_rt_data." + date + "." + i + ".log.gz")).filter(s -> s != null);  // 2019-04-04
+        List<String> names = List.range(0, 20).map(i -> Utils.findFile(siriLogFilesDirectory, "siri_rt_data_v2." + date + "." + i + ".log.gz")).filter(s -> s != null);  // 2019-04-04
         names = names.appendAll(namesOldFormat);
         logger.warn("reading {} siri results log files", names.size());
 
@@ -462,7 +471,7 @@ public class SiriData {
             logger.info("reading data about stops, from GTFS file ...");
             Set<String> tripIds = findAllTripIds(tripsData);
             java.util.Map<String, java.util.Map<Integer, StopsTimeData>> all =
-                    stops.generateStopsMap(tripIds, date, gtfsZipFileDirFullPath);
+                    stops.generateStopsMap1(tripIds, date);
 
             if (all.isEmpty()) {
                 logger.warn("trip ids not found in stops map of GTFS. Try finding by aimedDepartureTime");
@@ -723,7 +732,10 @@ public class SiriData {
 
     private Stream<String> readMakatFile(String date) {
         String makatZipFileName = "TripIdToDate" + date + ".zip";    // TripIdToDate2019-05-17.zip
-        String makatZipFileFullPath = directoryOfMakatFile + File.separatorChar + makatZipFileName;
+        String makatZipFileFullPath = Utils.findFile(directoryOfMakatFile, makatZipFileName);
+        if (makatZipFileFullPath == null) {
+            logger.warn("could not fine file {}, path used was: {}", makatZipFileFullPath, directoryOfMakatFile);
+        }
         return (new ReadZipFile()).makatLinesFromFile(makatZipFileFullPath);
     }
 

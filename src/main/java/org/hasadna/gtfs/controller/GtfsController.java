@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -43,6 +44,11 @@ public class GtfsController {
     @Autowired
     MemoryDB db;
 
+
+    @PostConstruct
+    public void init() {
+        //fillValuesForMonth("8177");     // doing all hard work for route 8177 on August 1-15
+    }
 
 
     /**
@@ -165,6 +171,23 @@ public class GtfsController {
 
         logger.info("<=== siri/day/{}/{} return json of {} characters",routeId,date, result.length());
         return result;
+    }
+
+    // In general this part is done offline by another application.
+    // It fills tha HaloDB with data processed from the raw data
+    public void fillValuesForMonth(String routeId) {
+        List<String> dates = new ArrayList<>();
+        for (int i = 1 ; i < 16 ; i++) {
+            String s = Integer.toString(i);
+            if (s.length() == 1) {
+                s = "0" + s ;
+            }
+            dates.add("2019-08-" + s);
+        }
+        for (String date : dates) {
+            retrieveSiriAndGtfsDataForRouteAndDateAsJson(routeId, date);
+            logger.info("done filling {}", date);
+        }
     }
 
     @GetMapping("gtfs/lines/{date}")
