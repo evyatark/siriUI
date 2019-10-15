@@ -9,9 +9,12 @@ import com.oath.halodb.HaloDBStats;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.Tuple3;
+import io.vavr.collection.HashSet;
 import io.vavr.collection.Map;
+import io.vavr.collection.Set;
 import io.vavr.collection.Stream;
 import org.hasadna.gtfs.Spark;
+import org.hasadna.gtfs.entity.StopsTimeData;
 import org.hasadna.gtfs.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,8 +22,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,7 +40,13 @@ public class GtfsController {
     Shapes shapesService;
 
     @Autowired
+    StreamResults streamResults;
+
+    @Autowired
     SiriData siriData;
+
+    @Autowired
+    Stops stops;
 
     @Autowired
     Routes gtfsRoutes;
@@ -50,6 +63,15 @@ public class GtfsController {
         //fillValuesForMonth("8177");     // doing all hard work for route 8177 on August 1-15
     }
 
+
+    @GetMapping("siri/route")   ///{routeId}/{date}")
+    public String siriTripsOfRoute() {
+        Instant start = Instant.now();
+        streamResults.do1();
+        Instant finish = Instant.now();
+        long timeElapsed = Duration.between(start, finish).toMillis();
+        return "OK, elapsed: " + timeElapsed;
+    }
 
     /**
      * Assuming that the shape of a route does not change at all!
@@ -146,6 +168,41 @@ public class GtfsController {
 
 
      */
+
+    @GetMapping("gtfs/stops/{tripId}/{date}")
+    public java.util.Map<String, java.util.Map<Integer, StopsTimeData>> generateStopsMap1(@PathVariable final String tripId, @PathVariable final String date ) {
+        return stops.generateStopsMap1(HashSet.of(tripId).toJavaSet(), date);
+    }
+
+    @GetMapping("siri/trips/full/{routeId}/{date}")
+    public java.util.List<TripData> siriFullTripData(@PathVariable final String routeId, @PathVariable final String date) {
+        Map<String, io.vavr.collection.Stream<String>> trips = siriData.findAllTrips(routeId, date);
+        //java.util.List<TripData> data = siriData.buildTripData(trips, date, routeId);
+        List<TripData> fullData = siriData.buildFullTripsData(trips, date, routeId);
+        return fullData;
+    }
+
+    @GetMapping("siri/trips/data/{routeId}/{date}")
+    public java.util.List<TripData> siriTripData(@PathVariable final String routeId, @PathVariable final String date) {
+        Map<String, io.vavr.collection.Stream<String>> trips = siriData.findAllTrips(routeId, date);
+        java.util.List<TripData> data = siriData.buildTripData(trips, date, routeId);
+        return data;
+    }
+
+    @GetMapping("siri/trips/short/{routeId}/{date}")
+    public Object findAllTrips(@PathVariable final String routeId, @PathVariable final String date) throws IOException {
+        String result = "{\"route\": " + routeId + ", \"date\": \"" + date + "\", \"trips\": [";
+        Map<String, io.vavr.collection.Stream<String>> trips = siriData.findAllTrips(routeId, date);
+        for (String tripId : trips.keySet()) {
+            long numberOfLines = trips.get(tripId).getOrElse(Stream.empty()).count(line -> true);
+            result = result + "{\"tripId\": " + tripId + ", \"lines\": " + numberOfLines + "},";
+        }
+        // remove last ","
+        result = result.substring(0, result.length() - 1);
+        result = result + "]}";
+        return ( new ObjectMapper() ).readValue(result, Object.class);
+    }
+
     @GetMapping("siri/day/{routeId}/{date}")
     public String retrieveSiriAndGtfsDataForRouteAndDateAsJson(@PathVariable String routeId, @PathVariable String date) {
         //spark.populateDayResults(date);     // will take a long time!!!
@@ -338,5 +395,89 @@ public class GtfsController {
         return "ok";
     }
 
+
+    @GetMapping("shapes")
+    public String calcShapesOnDate(@RequestParam String date, @RequestParam String routeIds) {
+        logger.info("shapes for date={} routeIds={}", date, routeIds);
+        long start = System.nanoTime();
+        List<String> routes = Arrays.asList( routeIds.split(",") );
+        for (String routeId : routes) {
+            logger.info("retrieve shape for {} ...", routeId);
+            retrieveShapeOfRouteAsJson(routeId, date);
+        }
+        long time = (System.nanoTime() - start)/1000000000 ;
+        return "retrieved shapes for routes " + routeIds + " on date " + date + " in " + time + " seconds";
+    }
+
+
+    @GetMapping("shapesForAgency")
+    public String calcShapesForAllRoutesOfAgencyOnDate(@RequestParam String date, @RequestParam String agency) throws IOException {
+
+        String json = retrieveAllLinesByDate(date); // json looks like this: [{"routeId":"1","agencyCode":"25","shortName":"1","from":"ת. רכבת יבנה מערב-יבנה","to":"ת. רכבת יבנה מזרח-יבנה"},{"routeId":"2","agencyCode":"25","shortName":"1","from":"ת. רכבת יבנה מזרח-יבנה","to":"ת. רכבת יבנה מערב-יבנה"},
+
+        ObjectMapper x = new ObjectMapper();
+        List<Object> objs = x.readValue(json, List.class);
+        List<String> routeIds = new ArrayList<>();
+        for (Object obj : objs) {
+            java.util.LinkedHashMap<String, String> map = (java.util.LinkedHashMap)obj;
+            if (map.containsKey("agencyCode") && map.containsKey("routeId")) {
+                if (map.get("agencyCode").equals(agency)) {
+                    //logger.info("{}", map.get("routeId"));
+                    routeIds.add(map.get("routeId"));
+                }
+            }
+        }
+        logger.info("found routes: " + routeIds);
+        String routeIdsAsOneStr = routeIds.stream().collect(Collectors.joining(","));
+        logger.info("retreiving shapes...");
+        String resultSummary = calcShapesOnDate(date, routeIdsAsOneStr);
+        logger.info(resultSummary);
+        return "retrieved shapes for routes " + routeIdsAsOneStr;
+    }
+
+
+    @GetMapping("siriForDateAndRoutes")
+    public String routesForDate(@RequestParam String date, @RequestParam String routeIds) {
+        List<String> routes = Arrays.asList( routeIds.split(",") );
+        for (String routeId : routes) {
+            long start = System.nanoTime();
+            retrieveSiriAndGtfsDataForRouteAndDateAsJson(routeId, date);
+            long time = (System.nanoTime() - start)/1000000000 ;
+            logger.info("retrieved full siri for route {} on date {} in {} seconds.", routeId, date, time);
+        }
+
+        return "OK";
+    }
+
+    @GetMapping("siriForAgency")
+    public String calcSiriForAllRoutesOfAgencyOnDate(@RequestParam String date, @RequestParam String agency) throws IOException {
+
+        String json = retrieveAllLinesByDate(date); // json looks like this: [{"routeId":"1","agencyCode":"25","shortName":"1","from":"ת. רכבת יבנה מערב-יבנה","to":"ת. רכבת יבנה מזרח-יבנה"},{"routeId":"2","agencyCode":"25","shortName":"1","from":"ת. רכבת יבנה מזרח-יבנה","to":"ת. רכבת יבנה מערב-יבנה"},
+
+        ObjectMapper x = new ObjectMapper();
+        List<Object> objs = x.readValue(json, List.class);
+        List<String> routeIds = new ArrayList<>();
+        for (Object obj : objs) {
+            java.util.LinkedHashMap<String, String> map = (java.util.LinkedHashMap)obj;
+            if (map.containsKey("agencyCode") && map.containsKey("routeId")) {
+                if (map.get("agencyCode").equals(agency)) {
+                    //logger.info("{}", map.get("routeId"));
+                    routeIds.add(map.get("routeId"));
+                }
+            }
+        }
+        logger.info("found routes: " + routeIds);
+        String routeIdsAsOneStr = routeIds.stream().collect(Collectors.joining(","));
+        logger.info("retreiving siri...");
+        String resultSummary = routesForDate(date, routeIdsAsOneStr);
+        logger.info(resultSummary);
+        return "retrieved siri for routes " + routeIdsAsOneStr;
+    }
+
+    @GetMapping("halt")
+    public String halt() {
+        System.exit(1);
+        return "OK";
+    }
 
 }

@@ -113,47 +113,63 @@ public class Stops {
 
         logger.debug("reading stops_time file, filtering for trips {} ...", tripIds);
         List<String> lines = readStopTimesFile(tripIds);
-//        if (lines == null) {
-//            logger.error("no lines found in stops_time file for trip {}", tripId);
-//        }
-//        else {
-            logger.debug("Done! read {} lines from file stop_times.txt", lines.size());
-//        }
-//        lines = readStopTimesFile(tripId);  // read again because we want to return a stream
-//        logger.info("                                               ...Done");
         if ((lines != null) && !lines.isEmpty()) {
+            logger.debug("Done! read {} lines from file stop_times.txt", lines.size());
 
             // for each tripId from tripIds:
-            for (String tripId : tripIds) {
-
-                logger.debug("extracting from lines of trip {}", tripId);
-                //List<String> tripLines = lines.collect(Collectors.toList());
-                //logger.info("got {} lines for trip {}", tripLines.size(), tripId);
-                //lines = tripLines.stream();
-                lines
-                    .filter(line -> line.startsWith(tripId + "_"))
-                    .map(line -> {
-                            logger.debug(line);
-                            return StopsTimeData.extractFrom(line);
-                        })
-                    .map(stopsTimeData -> {
-                            stopsTimeData.stopData = stopsMap.get(stopsTimeData.stop_id);
-                            return stopsTimeData;
-                        })
-                    .forEach(stopsTimeData -> addToMap(stopsTimeData, map));
-                if (!map.containsKey(tripId)) {
-                    logger.warn("tripId {} not found in GTFS!", tripId);
-                }
+//            for (String tripId : tripIds) {
+//
+//                logger.debug("extracting from lines of trip {}", tripId);
+//                lines
+//                    .filter(line -> line.startsWith(tripId + "_"))
+//                    .map(line -> {
+//                            logger.debug(line);
+//                            return StopsTimeData.extractFrom(line);
+//                        })
+//                    .map(stopsTimeData -> {
+//                            stopsTimeData.stopData = stopsMap.get(stopsTimeData.stop_id);
+//                            return stopsTimeData;
+//                        })
+//                    .forEach(stopsTimeData -> addToMap(stopsTimeData, map));
+//                if (!map.containsKey(tripId)) {
+//                    logger.warn("tripId {} not found in GTFS!", tripId);
+//                }
+//            }
+            // instead: (only one path over lines! should be faster)
+            map = generateStopsTimeDataForAllTrips(tripIds, lines, stopsMap);
+            if (logger.isWarnEnabled()) {
+                final Map map1 = map;
+                logger.warn("tripIds not found in GTFS: {}", tripIds.stream().filter(tripId -> !map1.containsKey(tripId)).collect(Collectors.joining(",")));
             }
         }
-        else if ((lines != null) && lines.isEmpty()) {
+        else if ((lines != null) && lines.isEmpty() && logger.isWarnEnabled()) {
             logger.warn("no lines were found in GTFS file stop_times.txt for any of the tripIds. Try searching trips by aimedDepartureTime!");
             logger.warn("tripIds: {}", tripIds);
 
         }
         return map;
-
     }
+
+
+    private Map<String, java.util.Map<Integer, StopsTimeData>> generateStopsTimeDataForAllTrips(Set<String> tripIds, List<String> lines, Map<String, StopData> stopsMap) {
+
+        Map<String, java.util.Map<Integer, StopsTimeData>> map = new HashMap<>();
+
+        for (String line : lines) {
+            if (lineStartsWithOneOfTripIds(line, tripIds)) {
+                StopsTimeData std = StopsTimeData.extractFrom(line);
+                std.stopData = stopsMap.get(std.stop_id);
+                addToMap(std, map);
+            }
+        }
+        return map;
+    }
+
+    private boolean lineStartsWithOneOfTripIds(String line, Set<String> tripIds) {
+        String thisTripId = line.substring(0, line.indexOf('_'));
+        return tripIds.contains(thisTripId);
+    }
+
 
     public Map<String, Map<Integer, StopsTimeData>> readStopsTimeDataOfTripFromFile2(Set<Tuple2<String, String>> trips, String date) {
 

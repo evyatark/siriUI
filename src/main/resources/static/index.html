@@ -1,0 +1,51 @@
+<html>
+    <head>
+
+    </head>
+    <body>
+        <div>
+            <a href="/gtfs/lines/2019-09-31">find routes working at this date</a>
+        </div>
+        <div>
+            <a href="/gtfs/shape/15531/2019-09-31">find shape of that route at that date</a>
+            <p>Cached in memory DB at Server Side. All subsequent queries with these arguments (even after restarting the server side) will be answered instantly.</p>
+        </div>
+        <div>
+            <a href="/gtfs/stops/12345678/2019-09-31">find stops of that trip at that date</a>
+        </div>
+        <div>
+            <a href="/siri/trips/short/15531/2019-09-31">find in siri logs GPS results of trips of that route at that date (short - only displays number of GPS results for each trip)</a>
+        </div>
+        <div>
+            <a href="/siri/trips/data/15531/2019-09-31">find in siri logs GPS results of trips of that route at that date (data - only displays data from siri GPS results for each trip) - results are trips, sorted by OriginalAimedDeparture time</a>
+        </div>
+        <div>
+            <a href="/siri/trips/full/15531/2019-09-31">find in siri logs GPS results of trips of that route at that date (full - displays both data from GTFS and data from siri GPS results for each trip) - takes a long time (30-60 seconds)</a>
+            <p>Sometimes it does not find the relevant data about stops in GTFS (probably because the trip IDs of Siri are different from the trip IDs in GTFS.</p>
+            <p>In that case, GTFS contains wrong trip IDs. Siri has the correct trip IDs.</p>
+            <p>It seems that "stops" and "stopTimeData" contain the same information. In "stops" it is arranged as a feature collection.
+            Do we calculate twice, or do we build the second from the first?
+            </p>
+        </div>
+        <div>
+            <a href="/gtfs/tripIdToDate/15531/2019-09-31">find trips of that route at that date (using tripIdToDate instead of regular GTFS files)</a>
+            <p>This request is very fast (because TripIdToDate file is small), and it is not cached.</p>
+        </div>
+        <div>
+            <a href="/gtfs/stops/12345678/2019-09-31">find stops of that trip at that date</a>
+        </div>
+
+        <h2>Very Long Operations</h2>
+        <div>
+            <a href="/siriForDateAndRoutes?date=2019-09-31&routeIds=15531,15530">performs siri/trips/full for trips of these routes in that date</a>
+        </div>
+        <p>The Stops data from GTFS should be cached, but it is not! Why?</p>
+        <div>
+            <a href="/siriForAgency?date=2019-09-31&agency=3">performs siriForDateAndRoutes for all routes of that agency that has trips in that date</a>
+        </div>
+
+        <div>
+            <a href="halt"> Stop this Web Application!</a>
+        </div>
+    </body>
+</html>

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.nio.charset.Charset;
 import java.util.Iterator;
+import java.util.Set;
 
 import static org.dizitart.no2.filters.Filters.eq;
 
@@ -94,11 +95,11 @@ public class MemoryDB {
             ndb.getCollection("siri").insert(Document.createDocument("key", key).put("value", value));
         }
         // after each write export to txt file - temporary!!!
-        ExportOptions exportOpt = new ExportOptions();
-        exportOpt.setExportData(true);
-        exportOpt.setExportIndices(false);
-        Exporter exporter = Exporter.of(ndb).withOptions(exportOpt);
-        exporter.exportTo("/tmp/export.txt");
+//        ExportOptions exportOpt = new ExportOptions();
+//        exportOpt.setExportData(true);
+//        exportOpt.setExportIndices(false);
+//        Exporter exporter = Exporter.of(ndb).withOptions(exportOpt);
+//        exporter.exportTo("/tmp/export.txt");
 
 
     }
@@ -150,6 +151,31 @@ public class MemoryDB {
         } catch (HaloDBException e) {
             logger.error("unhandled exception when trying to read key " + key, e);
             return null;
+        }
+    }
+
+    public void showCollections() {
+        final int LIMIT = 2;
+        logger.info("Nitrite:");
+        logger.info("Collections: {}", ndb.listCollectionNames());
+        logger.info("Repositories: {}", ndb.listRepositories());
+        for (String name : ndb.listCollectionNames()) {
+            logger.info("collection {} contains {} documents", name, ndb.getCollection(name).size());
+            Iterator<Document> iter = ndb.getCollection(name).find().iterator();
+            int counter = 0 ;
+            while (iter.hasNext()) {
+                counter = counter + 1;
+                Document doc = iter.next();
+                //logger.info("\tDocument {} last modified at {}", doc.getId(), doc.getLastModifiedTime());
+                logger.info("{} : {}", doc.get("key"), doc.get("value"));
+//                Set<String> keys = doc.keySet();
+//                for (String key : keys) {
+//                    logger.info ("\t\t{} : {}", key, doc.get(key));
+//                }
+                if (counter > LIMIT) {
+                    break;
+                }
+            }
         }
     }
 

@@ -53,7 +53,7 @@ function displaySiriPointsOnMap(siriPoints, iconFileName) {
                 icon: iconYellow,
                 title: title,
                 riseOnHover: true
-            }).addTo(mymap).bindPopup("<b>time:" + siriPoint.properties.time_recorded + "</b>");
+            }).addTo(mymap).bindPopup("<b>ttime:" + siriPoint.properties.time_recorded + "</b>");
             // + siriPoint.timestamp + siriPoint.recalculatedETA
         // + calculate distance from point to nearest stop, or
         // calculate the distance on the shape from point to nearest stop, or
@@ -68,6 +68,9 @@ function displaySiriPointsOnMap(siriPoints, iconFileName) {
             //     parent.document.getElementById('siri_departure').value = "יצא ב 06:14";//sp.properties.missing;
             //     parent.document.getElementById('siri_estimated_arrival').value = "אמור להגיע ב 07:14";//sp.properties.missing;
             // }).on('mouseout', clearSiriPointDisplay);
+
+            //marker.getPopup().autoClose=false;
+            //marker.getPopup().openOn(mymap);
             return marker;
         });
     return siriMarkers;

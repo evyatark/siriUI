@@ -6,6 +6,7 @@ import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.Tuple3;
 import org.assertj.core.api.Assertions;
+import org.hasadna.gtfs.service.MemoryDB;
 import org.hasadna.gtfs.service.Routes;
 import org.hasadna.gtfs.service.SiriData;
 import org.hasadna.gtfs.service.TripData;
@@ -37,6 +38,9 @@ public class GtfsControllerTest {
 
     @Autowired
     SiriData siriData;
+
+    @Autowired
+    MemoryDB memoryDB;
 
     List<String> routeIdsBS = Arrays.asList(
              "16211","16212"        // line 7
@@ -183,6 +187,12 @@ public class GtfsControllerTest {
         String output = results.stream().map(tuple -> String.format("date {}, \nroute {}, gtfs: {}, \nsiri: {}",date, tuple._1, tuple._2, tuple._3)).collect(Collectors.joining("\n"));
         //logger.info(output);
         return output;
+    }
+
+
+    @Test
+    public void displayMemoryDB() {
+        memoryDB.showCollections();
     }
 
 }
