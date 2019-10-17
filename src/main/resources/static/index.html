@@ -11,9 +11,6 @@
             <p>Cached in memory DB at Server Side. All subsequent queries with these arguments (even after restarting the server side) will be answered instantly.</p>
         </div>
         <div>
-            <a href="/gtfs/stops/12345678/2019-09-31">find stops of that trip at that date</a>
-        </div>
-        <div>
             <a href="/siri/trips/short/15531/2019-09-31">find in siri logs GPS results of trips of that route at that date (short - only displays number of GPS results for each trip)</a>
         </div>
         <div>
@@ -42,6 +39,15 @@
         <p>The Stops data from GTFS should be cached, but it is not! Why?</p>
         <div>
             <a href="/siriForAgency?date=2019-09-31&agency=3">performs siriForDateAndRoutes for all routes of that agency that has trips in that date</a>
+        </div>
+        <h3>Shapes</h3>
+        <div>
+            <a href="/shapes?date=2019-09-31&routeIds=15531,15530">performs /gtfs/shape for all specified routes in that date</a>
+            <p>This is usefull to preload the cache because /gtfs/shape is cached. Subsequent requests should be instantanious.</p>
+        </div>
+        <div>
+            <a href="/shapesForAgency?date=2019-09-31&agency=3">performs /gtfs/shape for all routes of that agency that have trips in that date</a>
+            <p>This is useful to pre-load the shapes cache</p>
         </div>
 
         <div>

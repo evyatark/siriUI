@@ -24,7 +24,7 @@ public class TripData {
     String siriTripId;
     String alternateTripId = "";
     String vehicleId;
-    List<SiriReading> siri1;
+    //List<SiriReading> siri1;
     SiriFeatureCollection siri;
     StopFeatureCollection stops;
     /*
@@ -146,13 +146,6 @@ public class TripData {
         this.vehicleId = vehicleId;
     }
 
-    public List<SiriReading> getSiri1() {
-        return siri1;
-    }
-
-    public void setSiri1(List<SiriReading> siri1) {
-        this.siri1 = siri1;
-    }
 
     public SiriFeatureCollection getSiri() {
         return siri;

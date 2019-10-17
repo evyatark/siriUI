@@ -459,8 +459,11 @@ public class SiriData {
 
     public TripData enrichSingleTrip(TripData tripData, java.util.Map<String, java.util.Map<Integer, StopsTimeData>> allStopsOfAllTrips) {
         findGtfsDataForSingleTrip(tripData.siriTripId, allStopsOfAllTrips);
-        tripData.stopsTimeData = allStopsOfAllTrips.get(tripData.siriTripId);
-        tripData.stops = StopsTimeData.createFeatures(tripData.stopsTimeData);
+        // no need to put in td both stopsTimeData and stops - they contain exactly the same information
+        // removing it will make the JSON much smaller!
+        // - not needed: tripData.stopsTimeData = allStopsOfAllTrips.get(tripData.siriTripId);
+        java.util.Map<Integer, StopsTimeData> temporaryStopsTimeData = allStopsOfAllTrips.get(tripData.siriTripId);
+        tripData.stops = StopsTimeData.createFeatures(temporaryStopsTimeData);
         return tripData;
     }
 
