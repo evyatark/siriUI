@@ -79,14 +79,28 @@ public class ReadZipFile {
      ****************************/
 
     public Stream<String> tripLinesFromFile(String fileFullPath) {
-        io.vavr.collection.Stream<String> lines = io.vavr.collection.Stream.empty();
         try {
-            lines = readZipFileV(fileFullPath, "trips.txt")
-                    .collect(io.vavr.collection.Stream.collector());
-        } catch (Exception ex) {
-
+            return readZipFile(fileFullPath, "trips.txt");
         }
-        return lines.toJavaStream();
+        catch (Exception ex) {
+            return Stream.empty();
+        }
+    }
+
+
+    /****************************
+     *
+     *  Calendar.txt
+     *
+     ****************************/
+
+    public Stream<String> calendarLinesFromFile(String fileFullPath) {
+        try {
+            return readZipFile(fileFullPath, "calendar.txt");
+        }
+        catch (Exception ex) {
+            return Stream.empty();
+        }
     }
 
 
@@ -196,7 +210,10 @@ public class ReadZipFile {
         //return tripIds.stream().anyMatch(tripId -> line.startsWith(tripId + "_"));
         // this saves a few seconds:
         for (String tripId : tripIds) {
-            if (line.startsWith(tripId + "_")) {
+            if (
+                    line.startsWith(tripId + "_") ||
+                    (line.startsWith(tripId) && tripId.contains("_"))
+            ) {
                 return true;
             }
         }

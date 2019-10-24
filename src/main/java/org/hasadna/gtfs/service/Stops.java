@@ -24,18 +24,18 @@ public class Stops {
     @Value("${gtfsZipFileDirectory}")
     public String gtfsZipFileDirFullPath = "";      // :/home/evyatar/logs/work/2019-04/gtfs/
 
-    public String gtfsZipFileName = "";
+    //public String gtfsZipFileName = "";
 
     private static Logger logger = LoggerFactory.getLogger(Stops.class);
 
 
 
 
-    public Map<String, StopData> readStopDataFromFile() {
+    public Map<String, StopData> readStopDataFromFile(String gtfsZipFileName) {
 
         Map<String, StopData> map = new HashMap<>();
 
-        Stream<String> lines = readStopsFile();
+        Stream<String> lines = readStopsFile(gtfsZipFileName);
 
         lines.map( line -> StopData.extractFrom(line)).forEach(stopData -> map.put(stopData.stop_id, stopData));
 
@@ -43,7 +43,7 @@ public class Stops {
 
     }
 
-    private Stream<String> readStopsFile() {
+    private Stream<String> readStopsFile(String gtfsZipFileName) {
         //String originalGtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
         //String gtfsZipFileFullPath = Utils.ensureFileExist(originalGtfsZipFileFullPath);
         String gtfsZipFileFullPath = Utils.findFile(gtfsZipFileDirFullPath, gtfsZipFileName);
@@ -58,44 +58,52 @@ public class Stops {
     }
 
 
-    private Stream<String> readRoutesFile() {
-        //String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
-        String gtfsZipFileFullPath = Utils.findFile(gtfsZipFileDirFullPath, gtfsZipFileName);
-        if (null == gtfsZipFileFullPath) {
-            logger.warn("could not find GTFS file of date {}. Searched this path: {}", gtfsZipFileName, gtfsZipFileDirFullPath);
-            return Stream.empty();
-        }
-        return (new ReadZipFile()).stopLinesFromFile(gtfsZipFileFullPath).toJavaStream();
-    }
-
-
-
-
-    private io.vavr.collection.Stream<String> readStopTimesFile() {
-        //String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
-        String gtfsZipFileFullPath = Utils.findFile(gtfsZipFileDirFullPath, gtfsZipFileName);
-        if (null == gtfsZipFileFullPath) {
-            logger.warn("could not find GTFS file of date {}. Searched this path: {}", gtfsZipFileName, gtfsZipFileDirFullPath);
-            return io.vavr.collection.Stream.empty();
-        }
-        return (new ReadZipFile()).stopTimesLinesFromFile(gtfsZipFileFullPath);
-    }
+//    private Stream<String> readRoutesFile() {
+//        //String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+//        String gtfsZipFileFullPath = Utils.findFile(gtfsZipFileDirFullPath, gtfsZipFileName);
+//        if (null == gtfsZipFileFullPath) {
+//            logger.warn("could not find GTFS file of date {}. Searched this path: {}", gtfsZipFileName, gtfsZipFileDirFullPath);
+//            return Stream.empty();
+//        }
+//        return (new ReadZipFile()).stopLinesFromFile(gtfsZipFileFullPath).toJavaStream();
+//    }
+//
+//    private io.vavr.collection.Stream<String> readStopTimesFile() {
+//        //String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
+//        String gtfsZipFileFullPath = Utils.findFile(gtfsZipFileDirFullPath, gtfsZipFileName);
+//        if (null == gtfsZipFileFullPath) {
+//            logger.warn("could not find GTFS file of date {}. Searched this path: {}", gtfsZipFileName, gtfsZipFileDirFullPath);
+//            return io.vavr.collection.Stream.empty();
+//        }
+//        return (new ReadZipFile()).stopTimesLinesFromFile(gtfsZipFileFullPath);
+//    }
 
     /**
      * returns a Java8 Lazy Stream of lines
      * @param tripIds
      * @return
      */
-    public List<String> readStopTimesFile(Set<String> tripIds) {
-        //String originalGtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
-        //String gtfsZipFileFullPath = Utils.ensureFileExist(originalGtfsZipFileFullPath);
+    public List<String> readStopTimesFile(Set<String> tripIds, String date) {
+        String gtfsZipFileFullPath = findGtfsZipFile(date);
+
+        logger.info("reading file {}", gtfsZipFileFullPath);
+        return (new ReadZipFile()).stopTimesLinesOfTripsFromFile(gtfsZipFileFullPath, tripIds);
+    }
+
+//    public List<String> readStopTimesFile2(Set<Tuple2<String, String>> trips, String date) {
+//        String gtfsZipFileFullPath = findGtfsZipFile(date);
+//
+//        logger.info("reading file {}", gtfsZipFileFullPath);
+//        return (new ReadZipFile()).stopTimesLinesOfTripsFromFile(gtfsZipFileFullPath, trips);
+//    }
+
+    private String findGtfsZipFile(String date) {
+        String gtfsZipFileName = decideGtfsFileName(date);
         String gtfsZipFileFullPath = Utils.findFile(gtfsZipFileDirFullPath, gtfsZipFileName);
         if (null == gtfsZipFileFullPath) {
             gtfsZipFileFullPath = Utils.ensureFileExist(Utils.createFilePath(gtfsZipFileDirFullPath, gtfsZipFileName));
         }
-
-        logger.info("reading file {}", gtfsZipFileFullPath);
-        return (new ReadZipFile()).stopTimesLinesOfTripsFromFile(gtfsZipFileFullPath, tripIds);
+        return gtfsZipFileFullPath;
     }
 
 
@@ -109,33 +117,15 @@ public class Stops {
     public Map<String, Map<Integer, StopsTimeData>> readStopsTimeDataOfTripFromFile(Set<String> tripIds, String date) {
         Map<String, java.util.Map<Integer, StopsTimeData>> map = new HashMap<>();
         // read stops.txt file from GTFS zip. return map of stopId to stopData (all data we have about this stop in GTFS)
-        Map<String, StopData> stopsMap = this.getMapForDate(date);
+        Map<String, StopData> stopsMap = this.getMapForDate(date);  // getMapForDate() is cached, will read stops.txt of each date only once.
 
         logger.debug("reading stops_time file, filtering for trips {} ...", tripIds);
-        List<String> lines = readStopTimesFile(tripIds);
+        // in following line, function is called with date. From that date it can deduce the GTFS file name.
+        List<String> lines = readStopTimesFile(tripIds, date);  // this reads "stop_times.txt" file (which is very big)
         if ((lines != null) && !lines.isEmpty()) {
             logger.debug("Done! read {} lines from file stop_times.txt", lines.size());
 
-            // for each tripId from tripIds:
-//            for (String tripId : tripIds) {
-//
-//                logger.debug("extracting from lines of trip {}", tripId);
-//                lines
-//                    .filter(line -> line.startsWith(tripId + "_"))
-//                    .map(line -> {
-//                            logger.debug(line);
-//                            return StopsTimeData.extractFrom(line);
-//                        })
-//                    .map(stopsTimeData -> {
-//                            stopsTimeData.stopData = stopsMap.get(stopsTimeData.stop_id);
-//                            return stopsTimeData;
-//                        })
-//                    .forEach(stopsTimeData -> addToMap(stopsTimeData, map));
-//                if (!map.containsKey(tripId)) {
-//                    logger.warn("tripId {} not found in GTFS!", tripId);
-//                }
-//            }
-            // instead: (only one path over lines! should be faster)
+            // (only one path over lines, for all tripIds! should be faster)
             map = generateStopsTimeDataForAllTrips(tripIds, lines, stopsMap);
             if (logger.isWarnEnabled()) {
                 final Map map1 = map;
@@ -167,14 +157,38 @@ public class Stops {
 
     private boolean lineStartsWithOneOfTripIds(String line, Set<String> tripIds) {
         String thisTripId = line.substring(0, line.indexOf('_'));
-        return tripIds.contains(thisTripId);
+        String orThisTripId = line.split(",")[0];
+        return tripIds.contains(thisTripId) || tripIds.contains(orThisTripId);
     }
 
 
     public Map<String, Map<Integer, StopsTimeData>> readStopsTimeDataOfTripFromFile2(Set<Tuple2<String, String>> trips, String date) {
+        // in trips, each tuple is (tripId, aimedDepartureTime)
+        Map<String, java.util.Map<Integer, StopsTimeData>> map = new HashMap<>();
+        Map<String, StopData> stopsMap = this.getMapForDate(date);
 
-        //List<String> lines = readStopTimesFile(trips);
-        return  null;
+        logger.debug("reading stops_time file, filtering for trips {} (not implemented yet!...", trips);
+        /**
+        List<String> lines = readStopTimesFile2(trips, date);   // this reads "stop_times.txt" file (which is very big)
+
+        // copied from readStopsTimeDataOfTripFromFile:
+        if ((lines != null) && !lines.isEmpty()) {
+            logger.debug("Done! read {} lines from file stop_times.txt", lines.size());
+
+            // (only one path over lines, for all tripIds! should be faster)
+            map = generateStopsTimeDataForAllTrips(tripIds, lines, stopsMap);
+            if (logger.isWarnEnabled()) {
+                final Map map1 = map;
+                logger.warn("tripIds not found in GTFS: {}", trips.stream().filter(tripId -> !map1.containsKey(tripId)).collect(Collectors.joining(",")));
+            }
+        }
+        else if ((lines != null) && lines.isEmpty() && logger.isWarnEnabled()) {
+            logger.warn("no lines were found in GTFS file stop_times.txt for any of the aimedDepartureTime!");
+            logger.warn("trips: {}", trips);
+
+        }
+         **/
+        return map;
     }
 
     private void addToMap(StopsTimeData stopsTimeData, Map<String, Map<Integer, StopsTimeData>> map) {
@@ -201,9 +215,6 @@ public class Stops {
      * @return map of tripId to a map. The inner map is a map of stopId to Stop record.
      */
     public Map<String, Map<Integer, StopsTimeData>> generateStopsMap1(Set<String> trip_ids, String date ) {
-        //Stops stops = new Stops(gtfsDir + "/" + "gtfs" + date + ".zip") ;
-//        this.gtfsZipFileDirFullPath = gtfsDir + "/";
-//        this.gtfsZipFileName = "gtfs" + date + ".zip";
         return readStopsTimeDataOfTripFromFile(trip_ids, date);
 
     }
@@ -212,12 +223,13 @@ public class Stops {
         return readStopsTimeDataOfTripFromFile2(trips, date);
     }
 
+    // applicative cache for Stops data of each date (content of file "stops.txt" from GTFS)
     Map<String, Map<String, StopData>> stopsMapsForAllDates = new HashMap<>();
 
     public Map<String, StopData> readStopsMap(final String date) {
         //this.gtfsZipFileDirFullPath = "/home/evyatar/logs/work/2019-04/gtfs/" ;
-        this.gtfsZipFileName = "gtfs" + date + ".zip" ;
-        Map<String, StopData> stopsMap = this.readStopDataFromFile();
+        String gtfsZipFileName = decideGtfsFileName(date);
+        Map<String, StopData> stopsMap = this.readStopDataFromFile(gtfsZipFileName);
         return stopsMap;
     }
 
@@ -234,6 +246,10 @@ public class Stops {
         finally {
             logger.info("                     ... Done");
         }
+    }
+
+    public static String decideGtfsFileName(String date) {
+        return "gtfs" + date + ".zip";
     }
 
 }

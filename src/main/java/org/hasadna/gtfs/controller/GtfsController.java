@@ -9,10 +9,7 @@ import com.oath.halodb.HaloDBStats;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.Tuple3;
-import io.vavr.collection.HashSet;
-import io.vavr.collection.Map;
-import io.vavr.collection.Set;
-import io.vavr.collection.Stream;
+import io.vavr.collection.*;
 import org.hasadna.gtfs.Spark;
 import org.hasadna.gtfs.entity.StopsTimeData;
 import org.hasadna.gtfs.service.*;
@@ -109,65 +106,78 @@ public class GtfsController {
     }
 
 
-    /**
-     * @param routeId
-     * @param date    in format 2019-12-31
-     * @return  JSON which is an array of objects representing several trips during the same day.
-     * each object in the array represents a specific trip that can be displayed by the web app.
-     * The web app receives the whole array, so it can display all trips of the same day.
-     * The JSON is in following format:
-        [
-            {
-                "routeId": "15531",
-                "shortName": "420",
-                "agencyCode": "16",
-                "agencyName": "Superbus",
-                "dayOfWeek": "SUNDAY",
-                "date": "2019-03-31",
-                "originalAimedDeparture": "05:20",
-                "gtfsETA": null,
-                "gtfsTripId": null,
-                "stopsTimeData": null,
-                "siriTripId": "37203669",
-                "vehicleId": "3175078",
-                "siri1": null,
-                "siri": {
-                    "type": "FeatureCollection",
-                    "features":
-                    [
-                        {
-                            "type": "Feature",
-                            "geometry": {
-                                "type": "Point",
-                                "coordinates": ["31.743228912353516", "34.9853630065918"]
-                            },
-                        "properties": {
-                            "time_recorded": "05:20:02",
-                            "timestamp": "2019-03-31T05:20:05.443",
-                            "recalculatedETA": "05:56"
-                            }
-                        },
-                        {
-                            "type": "Feature",
-                            "geometry": {
-                                "type": "Point",
-                                "coordinates": ["31.742992401123047", "34.98709487915039"]
-                            },
-                            "properties": {
-                                "time_recorded": "05:20:31",
-                                "timestamp": "2019-03-31T05:21:05.457",
-                                "recalculatedETA": "05:56"
-                            }
-                        }, ...
-                        ...
-                    ]
-                }
-            }, ...
-            ...
-        ]
+    @GetMapping("gtfs/stops/{routeId}/{tripId}/{date}")
+    public java.util.Map<String, java.util.Map<Integer, StopsTimeData>> generateStopsMap2(@PathVariable final String routeId, @PathVariable final String tripId, @PathVariable final String date ) {
+        java.util.Map result = stops.generateStopsMap1(HashSet.of(tripId).toJavaSet(), date);
+        if (!result.isEmpty()) {
+            return result;
+        }
+        else {  // empty - usual method of searching tripId in GTFS stops_time.txt failed.
+return null;
+        }
+    }
 
 
-     */
+    public java.util.Map<String, java.util.Map<Integer, StopsTimeData>> generateStopsMap2(final TripData tripData, final String date ) {
+        String tripId = tripData.getSiriTripId();
+        java.util.Map result = stops.generateStopsMap1(HashSet.of(tripId).toJavaSet(), date);
+        if (!result.isEmpty()) {
+            return result;
+        }
+        // empty - usual method of searching tripId in GTFS stops_time.txt failed.
+        if (tripData.getAlternateTripId() != null) {
+            result = stops.generateStopsMap1(HashSet.of(tripData.getAlternateTripId()).toJavaSet(), date);
+            if (!result.isEmpty()) {
+                return result;
+            }
+        }
+        Map<Integer, StopsTimeData> stopsTimeDataMap = findAlternateTripId(tripData.getRouteId(), tripData.getOriginalAimedDeparture(), date);
+        return HashMap.of(tripId, stopsTimeDataMap.toJavaMap()).toJavaMap();
+    }
+
+    private Map<Integer, StopsTimeData> findAlternateTripId(String routeId, String originalAimedDeparture, String date) {
+        //in trips.txt search: grep "^15532," trips.txt
+        // (15532 is the routeId)
+        // from result, take unique serviceIds (the second value in each line)
+        // for each serviceId, search: grep 19902 calendar.txt
+        // (where 19902 is the serviceId)
+        // result is (for example): 19902,0,0,1,1,1,0,0,20191015,20191019
+        // from all results, choose the one that:
+        // a. date arg is inside date range (,20191015,20191019)
+        // b. day of week of date arg has 1 in (,0,0,1,1,1,0,0,)
+        // there should be only one such result.
+        // (assuming the result has serviceId 19902) now search: grep "^15532,19902" trips.txt
+        // result is:
+        /*
+15532,19902,41569028_151019,,1,106264
+15532,19902,41569029_151019,,1,106264
+15532,19902,41569030_151019,,1,106264
+15532,19902,41569031_151019,,1,106264
+15532,19902,41569032_151019,,1,106264
+15532,19902,41569033_151019,,1,106264
+15532,19902,41569034_151019,,1,106264
+15532,19902,41569035_151019,,1,106264
+15532,19902,41569036_151019,,1,106264
+15532,19902,41569037_151019,,1,106264
+15532,19902,41569038_151019,,1,106264
+15532,19902,41569039_151019,,1,106264
+15532,19902,41569040_151019,,1,106264
+15532,19902,41569041_151019,,1,106264
+15532,19902,41569042_151019,,1,106264
+15532,19902,41569043_151019,,1,106264
+15532,19902,41569044_151019,,1,106264
+15532,19902,41569045_151019,,1,106264
+15532,19902,41569046_151019,,1,106264
+         */
+        // so 41569028_151019, 41569029_151019, ... are the tripIds for that day
+        // now you should match a OAD to each tripId:
+        // for each tripId you search:
+        // grep '^41569028_151019' stop_times.txt
+        // and choose the line that ends with ",0"
+        //41569028_151019,07:50:00,07:50:00,36782,1,0,1,0
+        // the OAD is 07:50:00
+    return null;
+    }
 
     @GetMapping("gtfs/stops/{tripId}/{date}")
     public java.util.Map<String, java.util.Map<Integer, StopsTimeData>> generateStopsMap1(@PathVariable final String tripId, @PathVariable final String date ) {

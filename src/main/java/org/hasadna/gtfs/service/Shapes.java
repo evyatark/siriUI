@@ -51,7 +51,6 @@ public class Shapes {
             //read trips file, find line that contains routeId
             // you get 2 lines but in both of them it is the same shape, so take the first.
             // from that line take 4th item (?) - this is the shape id
-            //  readFromLog(TRIPS_FILE)
             Optional<String> tripLine = rzf
                     .tripLinesFromFile(gtfsZipFileFullPath)
                     .filter(line -> line.startsWith(routeId + ","))

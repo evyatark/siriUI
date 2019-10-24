@@ -26,10 +26,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.hasadna.gtfs.service.Stops.decideGtfsFileName;
 
 @Component
 public class SiriData {
@@ -49,6 +53,9 @@ public class SiriData {
 
     @Value("${tripIdToDate.ZipFileDirectory}")
     public String directoryOfMakatFile;
+
+    @Value("${gtfsZipFileDirectory}")
+    public String directoryOfGtfsFile;
 
     @Value("${enable.gtfs.stops:true}")
     public boolean displayStops;
@@ -452,19 +459,51 @@ public class SiriData {
         }
     }
 
-    public void findGtfsDataForSingleTrip(final String siriTripId, java.util.Map<String, java.util.Map<Integer, StopsTimeData>> allStopsOfAllTrips) {
-        java.util.Map<Integer, StopsTimeData> stopsTimeData = allStopsOfAllTrips.get(siriTripId);
-        StopFeatureCollection stops = StopsTimeData.createFeatures(stopsTimeData);
-    }
+
 
     public TripData enrichSingleTrip(TripData tripData, java.util.Map<String, java.util.Map<Integer, StopsTimeData>> allStopsOfAllTrips) {
-        findGtfsDataForSingleTrip(tripData.siriTripId, allStopsOfAllTrips);
-        // no need to put in td both stopsTimeData and stops - they contain exactly the same information
-        // removing it will make the JSON much smaller!
-        // - not needed: tripData.stopsTimeData = allStopsOfAllTrips.get(tripData.siriTripId);
-        java.util.Map<Integer, StopsTimeData> temporaryStopsTimeData = allStopsOfAllTrips.get(tripData.siriTripId);
-        tripData.stops = StopsTimeData.createFeatures(temporaryStopsTimeData);
-        return tripData;
+        java.util.Map<Integer, StopsTimeData> stopsTimeData = allStopsOfAllTrips.get(tripData.siriTripId);
+        if (stopsTimeData == null) {
+            String matchingTripAccordingToDepartureHour = null;
+            for (String altTripId : allStopsOfAllTrips.keySet()) {
+                try {
+                    // it could be tripData.originalAimedDeparture = "11:45"
+                    // and allStopsOfAllTrips.get(altTripId).get(1).departureTime = "11:45:00"
+                    // so we don't check with equals() - we check the time difference between them
+                    //if (tripData.originalAimedDeparture.equals(allStopsOfAllTrips.get(altTripId).get(1).departureTime)) {
+                    LocalTime lt = null;
+                    if (tripData.originalAimedDeparture.contains("T")) {
+                        lt = LocalDateTime.parse(tripData.originalAimedDeparture).toLocalTime();
+                        // TODO handle the case of same time but of the day before (2019-10-15T23:45:00)
+                    }
+                    else {
+                        lt = LocalTime.parse(tripData.originalAimedDeparture);
+                    }
+                    if (lt.compareTo(
+                            LocalTime.parse(allStopsOfAllTrips.get(altTripId).get(1).departureTime)) == 0) {
+                        matchingTripAccordingToDepartureHour = altTripId;
+                        break;
+                    }
+                }
+                catch (Exception ex) {
+                    logger.warn("absorbing ", ex);
+                }
+            }
+            if (matchingTripAccordingToDepartureHour != null) {
+                tripData.alternateTripId = matchingTripAccordingToDepartureHour;
+                java.util.Map<Integer, StopsTimeData> temporaryStopsTimeData = allStopsOfAllTrips.get(tripData.alternateTripId);
+                tripData.stops = StopsTimeData.createFeatures(temporaryStopsTimeData);
+            }
+        }
+        else {
+            // no need to put in td both stopsTimeData and stops - they contain exactly the same information
+            // removing it will make the JSON much smaller!
+            // - not needed: tripData.stopsTimeData = allStopsOfAllTrips.get(tripData.siriTripId);
+            java.util.Map<Integer, StopsTimeData> temporaryStopsTimeData = allStopsOfAllTrips.get(tripData.siriTripId);
+            tripData.stops = StopsTimeData.createFeatures(temporaryStopsTimeData);
+        }
+        return tripData;    // returning a tripData with 1 or 2 changes - populated the "stops" with features,
+                            // and possibly also populated alternateTripId
     }
 
     public java.util.List<TripData> enrichTripsWithDataFromGtfs(java.util.List<TripData> tripsData, final String date) {
@@ -477,15 +516,32 @@ public class SiriData {
             // it is possible to get the list of planned trips from the schedule files of that day (if you have them)
             logger.info("reading data about stops, from GTFS file ...");
             Set<String> tripIds = findAllTripIds(tripsData);
+            logger.info("trip ids: {}", io.vavr.collection.List.ofAll(tripIds).sorted());
+            List<String> alternateIds = findAlternateTripIds(tripsData.get(0).routeId, date);
+            logger.info("alternate trip ids: {}", io.vavr.collection.List.ofAll(alternateIds).sorted());
             java.util.Map<String, java.util.Map<Integer, StopsTimeData>> all =
                     stops.generateStopsMap1(tripIds, date);
 
-            if (all.isEmpty()) {
+            //Map<Integer, StopsTimeData> res = findAlternateTripId(tripsData.get(0).routeId, "", date);
+            if (all.isEmpty() || all.size() < tripIds.size()) {
                 logger.warn("trip ids not found in stops map of GTFS. Trying to find by aimedDepartureTime...");
-                Set<Tuple2<String, String>> tripIdsWithAimedDepartureTimes = findAllTripIdsWithAimedDepartureTimes(tripsData);
-                stops.generateStopsMap(tripIdsWithAimedDepartureTimes, date);
+                //List<String> alternateIds = findAlternateTripIds(tripsData.get(0).routeId, date);
+                // TODO if we want alternateIds to work, we need to add the alternateID to tripData.gtfsAlternateId
+                logger.info("alternate tripIds: {}", alternateIds);
+                java.util.Map<String, java.util.Map<Integer, StopsTimeData>> all2 =
+                        stops.generateStopsMap1(alternateIds.toSet().toJavaSet(), date);
+                logger.info(all2.toString());
+                all.putAll(all2);
+                logger.info(all.toString());
+                //Set<Tuple2<String, String>> tripIdsWithAimedDepartureTimes = findAllTripIdsWithAimedDepartureTimes(tripsData);
+                // each tuple is (tripId, aimedDepartureTime) - maybe should be routeId and aimedDepartureTime?
+                // BUG???  I think it should be here:
+                //all = stops.generateStopsMap(tripIdsWithAimedDepartureTimes, date);
+                // in any case, currently generateStopsMap() this does not do anything!
+                //stops.generateStopsMap(tripIdsWithAimedDepartureTimes, date);
             }
 
+            // returning an updated TripsData (with each of its tripData items updated to include "stops"
             return tripsData.stream().map(tripData -> enrichSingleTrip(tripData, all)).collect(Collectors.toList());
 //            tripsData.forEach(tripData -> tripData.stopsTimeData = all.get(tripData.siriTripId));
 //            logger.info("                  ... stopsTimeData Done");
@@ -522,7 +578,7 @@ public class SiriData {
 
 
     private Set<String> findAllTripIds(java.util.List<TripData> tripsData) {
-        Set<String> aimedTimesOfAllTrips = tripsData.stream().map(tripData -> tripData.originalAimedDeparture).collect(Collectors.toSet());
+        //Set<String> aimedTimesOfAllTrips = tripsData.stream().map(tripData -> tripData.originalAimedDeparture).collect(Collectors.toSet());
         Set<String> tripIds = tripsData.stream().map(tripData -> tripData.siriTripId).collect(Collectors.toSet());
         return tripIds;
     }
@@ -540,6 +596,7 @@ public class SiriData {
 
     /**
      * build POJO representation of trips from the data in the method arguments
+     * TODO cache the result of calling this method
      * @param trips
      * @param date
      * @param routeId
@@ -552,6 +609,7 @@ public class SiriData {
     // sample of a line:
     // 2019-04-04T17:25:12.187,[line 358 v 8335053 oad 15:20 ea 18:17],15,8136,358,37350079,15:20,8335053,18:17,17:24:47,31.802471160888672,34.83134460449219
     public java.util.List<TripData> buildTripData(Map<String, io.vavr.collection.Stream<String>> trips, String date, String routeId) {
+        // TODO cache by key=date+routeId
         DayOfWeek dayOfWeek = LocalDate.parse(date).getDayOfWeek();
 
         java.util.List<TripData> tripsAccordingToSiri =
@@ -577,16 +635,18 @@ public class SiriData {
                                     return td;
                                 }).toJavaList();
 
-
+/***
         // should be like this:
         java.util.List<TripData> tripsAccordingToSiri1 =
                 trips
                    .keySet()
-                   .map(tripId -> buildTripData(tripId, trips.get(tripId).getOrElse(io.vavr.collection.Stream.empty()), date, routeId, dayOfWeek))
+                   .map(tripId -> buildTripData2(tripId, trips.get(tripId).getOrElse(io.vavr.collection.Stream.empty()), date, routeId, dayOfWeek))
                    .toJavaList();
 
         Map<String, String> siriTrips = findSiriTrips(List.ofAll(tripsAccordingToSiri1));
         display(siriTrips);
+ ***/
+
         java.util.List<TripData> tripsAccordingToGtfsTripIdToDate = buildTripsFromTripIdToDate(routeId, date);
         Map<String, String> gtfsTrips = findSiriTrips(List.ofAll(tripsAccordingToGtfsTripIdToDate));
         display(gtfsTrips);
@@ -604,8 +664,8 @@ public class SiriData {
         tripsAccordingToSiri.addAll(missingInSiri);
         // TODO sort tripsAccordingToSiri again (by originalAimedDeparture)
 */
-        java.util.List<TripData> sortedTripsAccordingToSiri = sort(tripsAccordingToSiri);
-        sortedTripsAccordingToSiri = completeWithGtfsData(tripsAccordingToSiri, tripsAccordingToGtfsTripIdToDate);
+        //java.util.List<TripData> sortedTripsAccordingToSiri = sort(tripsAccordingToSiri);
+        java.util.List<TripData> sortedTripsAccordingToSiri = completeWithGtfsData(tripsAccordingToSiri, tripsAccordingToGtfsTripIdToDate);
         // at that point sortedTripsAccordingToSiri contains also tripData objects of trips that appears in GTFS but not in siri data
 
         //return tripsAccordingToSiri;
@@ -613,7 +673,7 @@ public class SiriData {
     }
 
     /**
-     * find in gtfsTrips (by originAimedDeparture time) the trips that do not apear in siriTrips
+     * find in gtfsTrips (by originAimedDeparture time) the trips that do not appear in siriTrips
      * and add them to the siri list (with indication that they are DNS in Siri)
      * @param tripsAccordingToSiri
      * @param tripsAccordingToGtfsTripIdToDate
@@ -674,6 +734,11 @@ public class SiriData {
 
 
     /**
+     *
+     * This method is supposed to be a nicer implementation instead of  public java.util.List<TripData> buildTripData(...)
+     * But I need to add here the "complete trips from GTFS TripIdToDate" part.
+     *
+     *
      * Build TripData objects for all trips of that route and that day
      * @param trips     all lines in the siri logs that belong to each trip. can be retrieved by calling findAllTrips(routeId, date)
      * @param date
@@ -685,7 +750,7 @@ public class SiriData {
         java.util.List<TripData> tripsAccordingToSiri =
                 trips
                         .keySet()
-                        .map(tripId -> buildTripData(tripId, trips.get(tripId).getOrElse(io.vavr.collection.Stream.empty()), date, routeId, dayOfWeek))
+                        .map(tripId -> buildTripData2(tripId, trips.get(tripId).getOrElse(io.vavr.collection.Stream.empty()), date, routeId, dayOfWeek))
                         .toJavaList();
         java.util.List<TripData> sortedTripsAccordingToSiri = sort(tripsAccordingToSiri);
         return sortedTripsAccordingToSiri;
@@ -701,7 +766,7 @@ public class SiriData {
      * @param dayOfWeek
      * @return
      */
-    public TripData buildTripData(String tripId, io.vavr.collection.Stream<String> tripLinesInLog, String date, String routeId, DayOfWeek dayOfWeek) {
+    private TripData buildTripData2(String tripId, io.vavr.collection.Stream<String> tripLinesInLog, String date, String routeId, DayOfWeek dayOfWeek) {
         io.vavr.collection.Stream<String> thisTrip = tripLinesInLog;
         String firstLine = thisTrip.head();
         TripData td = new TripData();
@@ -1074,6 +1139,156 @@ public class SiriData {
     }
     */
 
+    private List<String> findAlternateTripIds(final String routeId, final String date) {
+        //in trips.txt search: grep "^15532," trips.txt
+        // (15532 is the routeId)
+        final String gtfsZipFileName = decideGtfsFileName(date);
+        final String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
+        final ReadZipFile rzf = new ReadZipFile();
+        final String prefixRoute = routeId + "," ;
+        // from result, take unique serviceIds (the second value in each line)
+        java.util.List<String> serviceIds = rzf
+                .tripLinesFromFile(gtfsZipFileFullPath)
+                .filter(line -> line.startsWith(prefixRoute))
+                .map(line -> getServiceId(line))
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+        // for each serviceId, search: grep 19902 calendar.txt
+        // (where 19902 is the serviceId)
+        // result is (for example): 19902,0,0,1,1,1,0,0,20191015,20191019
+        CalendarReader calendarReader = new CalendarReader();
+        calendarReader.setDirectoryOfGtfsFile(directoryOfGtfsFile);
+        final java.util.Map<String, java.util.List<String>> serviceIdToCalendarLines = calendarReader.readCalendar(date);
+
+        // from all results, choose the one that:
+        // a. date arg is inside date range (,20191015,20191019)
+        // b. day of week of date arg has 1 in (,0,0,1,1,1,0,0,)
+        // there should be only one such result.
+        java.util.List<String> allLines = new ArrayList<>();
+        for (String sId : serviceIds) {
+            java.util.List<String> lines = serviceIdToCalendarLines.get(sId);
+            allLines.addAll( calendarReader.linesContainDateAndDayOfWeek(lines, date) );
+        }
+        // expect list has only 1 line!!
+        final String serviceId = allLines.get(0).split(",")[0];
+        final String prefixRouteAndService = routeId + "," + serviceId + ",";
+        // (assuming the result has serviceId 19902) now search: grep "^15532,19902" trips.txt
+        // now search in trips.txt lines with routeId, serviceId
+        List<String> allTripsOfRouteAtDate = List.ofAll( rzf
+                .tripLinesFromFile(gtfsZipFileFullPath)
+                .filter(line -> line.startsWith(prefixRouteAndService))
+                .sorted()
+                .collect(Collectors.toList())
+        );
+        // result is:
+        /*
+15532,19902,41569028_151019,,1,106264
+15532,19902,41569029_151019,,1,106264
+15532,19902,41569030_151019,,1,106264
+15532,19902,41569031_151019,,1,106264
+15532,19902,41569032_151019,,1,106264
+15532,19902,41569033_151019,,1,106264
+15532,19902,41569034_151019,,1,106264
+15532,19902,41569035_151019,,1,106264
+15532,19902,41569036_151019,,1,106264
+15532,19902,41569037_151019,,1,106264
+15532,19902,41569038_151019,,1,106264
+15532,19902,41569039_151019,,1,106264
+15532,19902,41569040_151019,,1,106264
+15532,19902,41569041_151019,,1,106264
+15532,19902,41569042_151019,,1,106264
+15532,19902,41569043_151019,,1,106264
+15532,19902,41569044_151019,,1,106264
+15532,19902,41569045_151019,,1,106264
+15532,19902,41569046_151019,,1,106264
+         */
+        List<String> allTripIds = allTripsOfRouteAtDate.map(line -> line.split(",")[2]);
+        return allTripIds;
+    }
+
+    private Map<Integer, StopsTimeData> findAlternateTripId(final String routeId, final String originalAimedDeparture, final String date) {
+        //in trips.txt search: grep "^15532," trips.txt
+        // (15532 is the routeId)
+        final String gtfsZipFileName = decideGtfsFileName(date);
+        final String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
+        final ReadZipFile rzf = new ReadZipFile();
+        final String prefixRoute = routeId + "," ;
+        // from result, take unique serviceIds (the second value in each line)
+        java.util.List<String> serviceIds = rzf
+                .tripLinesFromFile(gtfsZipFileFullPath)
+                .filter(line -> line.startsWith(prefixRoute))
+                .map(line -> getServiceId(line))
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+        // for each serviceId, search: grep 19902 calendar.txt
+        // (where 19902 is the serviceId)
+        // result is (for example): 19902,0,0,1,1,1,0,0,20191015,20191019
+        CalendarReader calendarReader = new CalendarReader();
+        final java.util.Map<String, java.util.List<String>> serviceIdToCalendarLines = calendarReader.readCalendar(date);
+
+        // from all results, choose the one that:
+        // a. date arg is inside date range (,20191015,20191019)
+        // b. day of week of date arg has 1 in (,0,0,1,1,1,0,0,)
+        // there should be only one such result.
+        java.util.List<String> allLines = new ArrayList<>();
+        for (String sId : serviceIds) {
+            java.util.List<String> lines = serviceIdToCalendarLines.get(sId);
+            allLines.addAll( calendarReader.linesContainDateAndDayOfWeek(lines, date) );
+        }
+        // expect list has only 1 line!!
+        final String serviceId = allLines.get(0).split(",")[0];
+        final String prefixRouteAndService = routeId + "," + serviceId + ",";
+        // (assuming the result has serviceId 19902) now search: grep "^15532,19902" trips.txt
+        // now search in trips.txt lines with routeId, serviceId
+        List<String> allTripsOfRouteAtDate = List.ofAll( rzf
+                .tripLinesFromFile(gtfsZipFileFullPath)
+                .filter(line -> line.startsWith(prefixRouteAndService))
+                .sorted()
+                .collect(Collectors.toList())
+        );
+        // result is:
+        /*
+15532,19902,41569028_151019,,1,106264
+15532,19902,41569029_151019,,1,106264
+15532,19902,41569030_151019,,1,106264
+15532,19902,41569031_151019,,1,106264
+15532,19902,41569032_151019,,1,106264
+15532,19902,41569033_151019,,1,106264
+15532,19902,41569034_151019,,1,106264
+15532,19902,41569035_151019,,1,106264
+15532,19902,41569036_151019,,1,106264
+15532,19902,41569037_151019,,1,106264
+15532,19902,41569038_151019,,1,106264
+15532,19902,41569039_151019,,1,106264
+15532,19902,41569040_151019,,1,106264
+15532,19902,41569041_151019,,1,106264
+15532,19902,41569042_151019,,1,106264
+15532,19902,41569043_151019,,1,106264
+15532,19902,41569044_151019,,1,106264
+15532,19902,41569045_151019,,1,106264
+15532,19902,41569046_151019,,1,106264
+         */
+        List<String> allTripIds = allTripsOfRouteAtDate.map(line -> line.split(",")[2]);
+
+        // so 41569028_151019, 41569029_151019, ... are the tripIds for that day
+        // now you should match a OAD to each tripId:
+        // for each tripId you search:
+        // grep '^41569028_151019' stop_times.txt
+        List<String> lines = stops.readStopTimesFile(allTripIds.toJavaSet(), date);
+        // and choose the line that ends with ",0"
+        List<String> oadLines = lines.filter(line -> line.endsWith(",0"));
+        //41569028_151019,07:50:00,07:50:00,36782,1,0,1,0
+        // the OAD is 07:50:00
+        logger.info("trips with OAD: {}", oadLines);
+        return null;
+    }
+
+    private String getServiceId(String tripLine) {
+        // sample line: 15532,19916,41268289_231019,xx,1,106264
+        return tripLine.split(",")[1];
+    }
 
 }
 

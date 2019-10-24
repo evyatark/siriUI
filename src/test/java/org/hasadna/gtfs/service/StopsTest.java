@@ -20,9 +20,9 @@ public class StopsTest {
     @Test
     public void test1() throws IOException {
         //Stops stops = new Stops("/home/evyatar/logs/work/2019-04/gtfs/" + "gtfs2019-04-01" + ".zip") ;
-        stops.gtfsZipFileName = "gtfs2019-04-01" + ".zip" ;
+        String gtfsZipFileName = "gtfs2019-04-01" + ".zip" ;
         stops.gtfsZipFileDirFullPath = "/home/evyatar/logs/work/2019-04/gtfs/";
-        Map<String, StopData> stopsMap = stops.readStopDataFromFile();
+        Map<String, StopData> stopsMap = stops.readStopDataFromFile(gtfsZipFileName);
 
         String stopId = "36300";
         StopData sd = stopsMap.get(stopId);

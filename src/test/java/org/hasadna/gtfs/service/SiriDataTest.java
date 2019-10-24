@@ -233,7 +233,7 @@ public class SiriDataTest {
     @Test
     public void test11() {
         stops.gtfsZipFileDirFullPath = "/home/evyatar/sivan/may25/" ;
-        stops.gtfsZipFileName = "gtfs2019-05-25" + ".zip";
+        //stops.gtfsZipFileName = "gtfs2019-05-25" + ".zip";
         siriData.directoryOfMakatFile = "/home/evyatar/sivan/may25/";
 
         List<String> dates = List.of("2019-05-25");//, "2019-04-01", "2019-04-02", "2019-04-03", "2019-04-04", "2019-04-05");
@@ -269,8 +269,8 @@ public class SiriDataTest {
     public void test13() {
         //Stops stops = new Stops("/home/evyatar/logs/work/2019-03/gtfs/" + "gtfs2019-03-01" + ".zip") ;
         stops.gtfsZipFileDirFullPath = "/home/evyatar/logs/work/2019-03/gtfs/" ;
-        stops.gtfsZipFileName = "gtfs2019-03-01" + ".zip";
-        java.util.Map<String, StopData> stopsMap = stops.readStopDataFromFile();
+        //stops.gtfsZipFileName = "gtfs2019-03-01" + ".zip";
+        java.util.Map<String, StopData> stopsMap = stops.readStopDataFromFile("gtfs2019-03-01" + ".zip");
 
         java.util.List<String> dates =
                 io.vavr.collection.Stream.rangeClosed(4, 4)
@@ -333,11 +333,11 @@ public class SiriDataTest {
     @Test
     public void test15() {
 
-        stops.gtfsZipFileName = "gtfs2019-03-03.zip";
+        String gtfsZipFileName = "gtfs2019-03-03.zip";
         String TRIP_ID = "36619570" ;
-        java.util.List<String> linesOfTrip = stops.readStopTimesFile(List.of(TRIP_ID).toJavaSet()).collect(Collectors.toList());
+        java.util.List<String> linesOfTrip = stops.readStopTimesFile(List.of(TRIP_ID).toJavaSet(), "2019-03-03").collect(Collectors.toList());
         if (linesOfTrip.isEmpty()) {
-            logger.info(" GTFS file {} does not contain tripId {}", stops.gtfsZipFileName, TRIP_ID);
+            logger.info(" GTFS file {} does not contain tripId {}", gtfsZipFileName, TRIP_ID);
         }
         else {
             linesOfTrip.forEach(line -> logger.info(line));

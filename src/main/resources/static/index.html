@@ -5,6 +5,7 @@
     <body>
         <div>
             <a href="/gtfs/lines/2019-09-31">find routes working at this date</a>
+            <p>Cached, subsequent requests with the same date will be answered from cache.</p>
         </div>
         <div>
             <a href="/gtfs/shape/15531/2019-09-31">find shape of that route at that date</a>
@@ -31,14 +32,17 @@
         <div>
             <a href="/gtfs/stops/12345678/2019-09-31">find stops of that trip at that date</a>
         </div>
-
+        <div>
+            <a href="/siri/day/{routeId}/{date}">find siri data and GTFS data, returned as a JSON that the UI can use</a>
+            <p>Cached, subsequent requests with the same date will be answered from cache.</p>
+        </div>
         <h2>Very Long Operations</h2>
         <div>
             <a href="/siriForDateAndRoutes?date=2019-09-31&routeIds=15531,15530">performs siri/trips/full for trips of these routes in that date</a>
         </div>
         <p>The Stops data from GTFS should be cached, but it is not! Why?</p>
         <div>
-            <a href="/siriForAgency?date=2019-09-31&agency=3">performs siriForDateAndRoutes for all routes of that agency that has trips in that date</a>
+            <a href="/siriForAgency?date=2019-09-31&agency=3">performs siriForDateAndRoutes for all routes (of that agency) that have trips in that date</a>
         </div>
         <h3>Shapes</h3>
         <div>
