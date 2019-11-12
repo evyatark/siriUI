@@ -152,6 +152,70 @@ function clearStopDisplay(event) {
     // parent.document.getElementById('gtfs_stop_name').value = "";
 }
 
+function fetchMeasuredDistance(stop1, stop2, routeId, date) {
+    let sequence1 = stop1.properties.stop_sequence
+    let c = stop1.geometry.coordinates[0];
+    let sequence1lat = stop1.geometry.coordinates[0];
+    let sequence1lon = stop1.geometry.coordinates[1];
+    let sequence2 = stop2.properties.stop_sequence
+    let sequence2lat = stop2.geometry.coordinates[0];
+    let sequence2lon = stop2.geometry.coordinates[1];
+
+    clog("called fetchMeasuredDistance, from=" + stop1 + ", sequence=" + sequence1+ ", to=" + stop2 + ", sequence=" + sequence2+ ", routeId=" + routeId + ", date=" + date);
+    const url = 'gtfs/distance/calc/' + sequence1lat + "/" + sequence1lon + "/" + sequence2lat + "/" + sequence2lon + "/" + routeId + "/" + date;
+    $.ajax({
+        url: url
+    })
+        .done(function( json ) {
+            let retVal = json; // returned value is just a string  //JSON.parse(json);
+            clog("retVal=" + retVal);
+            //clog("completed");
+        });
+}
+
+function measureDistanceBetweenStops(stops) {
+    let x = stops.features; // array
+    let cs = x[0].geometry.coordinates;
+    let lat = cs[0];
+    let lon = cs[1];
+    let y = x[0].properties.stop_sequence;  // starts from 1, x.gtfsTrips[""0""].stops.features[""0""].properties.arrivalTime
+    let d = x[0].properties.distance;   // x.gtfsTrips[""0""].stops.features[""0""].properties.distance
+    let from = parent.document.getElementById('v3').value;
+    let to = parent.document.getElementById('v4').value;
+    if (from && to) {
+        clog("from=" + from + ", to=" + to);
+        let myRouteId = sessionStorage.getItem("selectedRouteId");
+        // TODO possibly need to find in gtfsTrips array an element that has the current Route
+        let mystops = stops.features;
+        let stop1 = mystops[from-1];
+        let sequence1 = stop1.properties.stop_sequence
+        let sequence1lat = stop1.geometry.coordinates[0];
+        let sequence1lon = stop1.geometry.coordinates[1];
+        let stop2 = mystops[to-1];
+        let sequence2 = stop2.properties.stop_sequence
+        let sequence2lat = stop2.geometry.coordinates[0];
+        let sequence2lon = stop2.geometry.coordinates[1];
+
+        fetchMeasuredDistance(stop1, stop2, myRouteId, sessionStorage.getItem("selectedDate"));
+    }
+    else {
+        clog("something wrong. Probably no value was typed in one of the text boxes");
+    }
+}
+
+function displayJustShape() {
+    let shapeJson = sessionStorage.getItem("shapeOfSelectedRoute");
+    if (shapeJson) {
+        let shape = { "coordinates": JSON.parse(shapeJson) } ;
+        let polyline = displayRouteOnMap(shape.coordinates, 'red');
+        }
+
+    const routeData = JSON.parse( sessionStorage.getItem("selectedRoute"));
+    // routeData.agencyCode
+    // routeData.shortName
+    // routeData.from
+    // routeData.to
+}
 
 // arg gtfsTripObject is an object of the format in allTrips
 function askDisplayAll(gtfsTripObject, setView) {
@@ -178,7 +242,7 @@ function askDisplayAll(gtfsTripObject, setView) {
     // }
     mapAllRoutesDisplayed.set(tripId, route1);
     clog("added. map now contains " + mapAllRoutesDisplayed.size);
-    if (setView) {
+    if (setView && gtfsTripObject.siri && gtfsTripObject.siri.features) {
         mymap.setView(gtfsTripObject.siri.features[0].geometry.coordinates, 12);
     }
 }
@@ -273,7 +337,7 @@ function initMap() {
 
 $(document).ready(function () {
     allTripsFromJs = allTrips; // allTrips arrives from including allTrips.js. In production will arrive from Python analysis of Siri Data
-    clog("allTripsFromJs initialized to allTrips (content of js file)")
+    clog("allTripsFromJs initialized to allTrips (content of js file)");
     const sampleVehicleId = allTripsFromJs.gtfsTrips[0].vehicleId;
     clog("vehicleId of first trip is " + sampleVehicleId);
 

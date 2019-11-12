@@ -1,5 +1,9 @@
 package org.hasadna.gtfs.service;
 
+import io.vavr.collection.HashMap;
+import io.vavr.collection.List;
+import io.vavr.collection.Map;
+import io.vavr.collection.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,10 +14,6 @@ import org.springframework.util.StringUtils;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.hasadna.gtfs.service.Stops.decideGtfsFileName;
 
@@ -26,7 +26,7 @@ public class CalendarReader {
 
     public String theDate = "";
 
-    Map<String, java.util.List<String>> map = new HashMap<>();
+    Map<String, Stream<String>> map = HashMap.empty();
 
     private static final Logger logger = LoggerFactory.getLogger(CalendarReader.class);
 
@@ -42,13 +42,16 @@ public class CalendarReader {
         return day; // Sunday=1, ..., Saturday=7
     }
 
-    public Map<String, java.util.List<String>> readAllCalendar(String date) {
+    public String f(String line) {
+        return line.split(",")[0];
+    }
+    public Map<String, Stream<String>> readAllCalendar(String date) {
         final String gtfsZipFileName = decideGtfsFileName(date);
         final String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
         final ReadZipFile rzf = new ReadZipFile();
-        Map<String, java.util.List<String>> mapServiceIdToCalendarLines = rzf
+        Map<String, Stream<String>> mapServiceIdToCalendarLines = rzf
                 .calendarLinesFromFile(gtfsZipFileFullPath)
-                .collect(Collectors.groupingBy(line -> line.split(",")[0]));
+                .groupBy(line -> line.split(",")[0]);
         /** mapServiceIdToCalendarLines:
                 ("19900" -> "19900,0,0,0,0,0,1,0,20191015,20191019"),
                 ("19901" -> "19901,0,0,0,0,0,0,1,20191015,20191019" ),
@@ -64,7 +67,7 @@ public class CalendarReader {
         return mapServiceIdToCalendarLines;
     }
 
-    public Map<String, java.util.List<String>> readCalendar(String date) {
+    public Map<String, Stream<String>> readCalendar(String date) {
         if (map.isEmpty()) {
             synchronized (map) {
                 if (map.isEmpty()) {
@@ -77,16 +80,14 @@ public class CalendarReader {
     }
 
     public List<String> linesContainDate(List<String> lines, String date) {
-        return lines.stream().filter(line -> lineContainsDate(line, date)).collect(Collectors.toList());
+        return lines.filter(line -> lineContainsDate(line, date));
     }
 
     public List<String> linesContainDateAndDayOfWeek(final List<String> lines, final String date) {
         final int dayOfWeek = dayOfWeek(date);
         final List<String> linesWithDay = lines
-                .stream()
                 .filter(line -> lineContainsDate(line, date))
-                .filter(line -> lineContainsDayOfWeek(line, dayOfWeek))
-                .collect(Collectors.toList());
+                .filter(line -> lineContainsDayOfWeek(line, dayOfWeek));
         return linesWithDay;
     }
 

@@ -1,5 +1,6 @@
 package org.hasadna.gtfs.service;
 
+import io.vavr.collection.Map;
 import org.assertj.core.api.Assertions;
 import org.hasadna.gtfs.entity.StopData;
 import org.junit.Test;
@@ -8,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
-import java.util.Map;
+
 
 public class StopsTest {
 
@@ -25,10 +26,10 @@ public class StopsTest {
         Map<String, StopData> stopsMap = stops.readStopDataFromFile(gtfsZipFileName);
 
         String stopId = "36300";
-        StopData sd = stopsMap.get(stopId);
+        StopData sd = stopsMap.get(stopId).get();
         logger.info(sd.toString());
         Assertions.assertThat(sd.stop_code).isEqualTo("21256");
 
-        Assertions.assertThat(stopsMap.get("36300").stop_code).isEqualTo("21256");
+        Assertions.assertThat(stopsMap.get("36300").get().stop_code).isEqualTo("21256");
     }
 }

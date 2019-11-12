@@ -22,6 +22,27 @@ function fetchAllTripsForDay(routeId, date) {
         });
 }
 
+// expects date as a String in format "2019-03-31"
+function fetchJustStops(routeId, date) {
+    // temporary
+    routeId = "";
+    tripId = "";
+    date = "";
+    // @GetMapping("gtfs/stops/{routeId}/{tripId}/{date}")
+    const url = 'gtfs/stops/' + routeId + "/" + tripId + "/" + date;
+    $.ajax({
+        url: url
+    })
+        .done(function( json ) {
+            allTripsFromJs.gtfsTrips = JSON.parse(json);
+            clog("request completed, received " +
+                allTripsFromJs.gtfsTrips.length);
+
+            populateTripsGrid(allTripsFromJs);
+            clog("completed populating grid");
+        });
+}
+
 // changes the document by adding more lines to the table in element "all_lines"
 // the new rows come from allTrips - the argument to this function.
 // Called when this page loads.
@@ -79,6 +100,23 @@ function populateBusHeader(selectedRouteId, selectedDate) {
 Please consider that the JS part isn't production ready at all, I just code it to show the concept of merging filters and titles together !
 */
 $(document).ready(function(){
+    $('#v1').on('click',function(ev) {
+        console.log("clicked button v1, go to display shape");
+        console.log(ev);
+        iframe.contentWindow.displayJustShape();
+    });
+    $('#v2').on('click',function(ev) {
+        console.log("clicked button v2, go to display stops");
+        console.log(ev);
+        let x = allTripsFromJs;
+        let index = 0;
+
+        while ((index < allTripsFromJs.gtfsTrips.length) && !allTripsFromJs.gtfsTrips[index].stops) {
+            index = index + 1;
+        }
+        let z = allTripsFromJs.gtfsTrips[index].stops;
+        iframe.contentWindow.measureDistanceBetweenStops(z);
+    });
     $('.filterable .btn-filter').click(function(){
         var $panel = $(this).parents('.filterable'),
             $filters = $panel.find('.filters input'),
@@ -133,6 +171,33 @@ $(document).ready(function(){
             setView = true;
         }
         clog("setView=" + setView);
+
+        iframe.contentWindow.displayJustShape();
+
+        //iframe.contentWindow.displayStopsOnMap(stops);  // 2nd arg optional, if not passed should use default
+        /* expects stops.features
+         stop.geometry.coordinates
+
+"tripObject": {
+        "shape": {
+            "coordinates":[]
+        }
+        "stops" : {
+            "features": [
+                {
+                    "geometry" : {
+                        "coordinates":[]
+                    }
+                    "properties":[]
+                },
+                {...}
+            ]
+          }
+*/
+
+        //////////////////////////////
+        //  original code - uses findGtfsTripObject() which uses a data structure already built before
+        /////////////////////
         iframe.contentWindow.askDisplayAll(findGtfsTripObject(tripId), setView);
         iframe.contentWindow.removeTripFromMap(previousTripId);
         clog("done removing trip " + previousTripId);
@@ -161,6 +226,10 @@ $(document).ready(function(){
     clog("selectedRouteId=" + selectedRouteId);
     selectedDate = sessionStorage.getItem("selectedDate");
     clog("selectedDate=" + selectedDate);
+    if ("" === sessionStorage.getItem("shapeOfSelectedRoute")) {
+        fetchShapeOfSelectedRoute(selectedDate, selectedRouteId);
+    }
+
     //fetchAllTripsForDay("10812", "2019-04-18");
     fetchAllTripsForDay(selectedRouteId, selectedDate);
     // fetch json of trips by accessing the Java Spring controller

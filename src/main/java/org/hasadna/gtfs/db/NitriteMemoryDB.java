@@ -1,4 +1,4 @@
-package org.hasadna.gtfs.service;
+package org.hasadna.gtfs.db;
 
 import com.oath.halodb.HaloDB;
 import com.oath.halodb.HaloDBException;
@@ -7,8 +7,6 @@ import com.oath.halodb.HaloDBStats;
 import org.dizitart.no2.Document;
 import org.dizitart.no2.Nitrite;
 import org.dizitart.no2.NitriteCollection;
-import org.dizitart.no2.tool.ExportOptions;
-import org.dizitart.no2.tool.Exporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,54 +15,31 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.nio.charset.Charset;
 import java.util.Iterator;
-import java.util.Set;
 
 import static org.dizitart.no2.filters.Filters.eq;
 
 @Component
-public class MemoryDB {
+public class NitriteMemoryDB implements MemoryDB {
 
-    private static Logger logger = LoggerFactory.getLogger(MemoryDB.class);
+    private static Logger logger = LoggerFactory.getLogger(NitriteMemoryDB.class);
 
-    @Value("${halo.db.dir}")
-    public String directoryOfHaloDB;
+    @Value("${nitrite.db.enable:false}")
+    public boolean nitriteEnabled;
 
-    @Value("${halo.db.enable:false}")
-    public boolean enabled;
+    @Value("${tests.delete.prev.db.entry:false}")
+    public boolean deletePreviousEntry;
 
-    HaloDB db = null;
+    @Value("${nitrite.db.file.path}")
+    public String nitritePath = "/home/evyatar/temp/nitrite.db";
+
     Nitrite ndb = null;
 
     @PostConstruct
     public void init() {
-        if (!enabled) return;
-        HaloDBOptions options = new HaloDBOptions();
-        options.setMaxFileSize(1024 * 1024 * 1024);
-        options.setMaxTombstoneFileSize(64 * 1024 * 1024);
-        options.setBuildIndexThreads(4);
-        options.setFlushDataSizeBytes(10 * 1024 * 1024);
-        options.setCompactionThresholdPerFile(0.7);
-        options.setCompactionJobRate(50 * 1024 * 1024);
-        options.setNumberOfRecords(100_000_000);
-        options.setCleanUpTombstonesDuringOpen(true);
-        options.setCleanUpInMemoryIndexOnClose(false);
-        options.setUseMemoryPool(true);
-        options.setMemoryPoolChunkSize(2 * 1024 * 1024);
-        //options.setFixedKeySize(8);
-        //HaloDB db = null;
-        //String directory = "../db/";
-        try {
-            db = HaloDB.open(directoryOfHaloDB, options);
-        } catch (HaloDBException e) {
-            logger.error("unhandled exception when trying to open HaloDB file", e);
-        }
-
-        //TODO where to close db?
-        //db.close();
 
         // nitrite db
         ndb = Nitrite.builder()
-                .filePath("/tmp/nitrite.db")
+                .filePath(nitritePath)
                 .openOrCreate();
 //        NitriteCollection collection1 = ndb.getCollection("shapes");
 //        NitriteCollection collection2 = ndb.getCollection("siri");
@@ -74,19 +49,8 @@ public class MemoryDB {
 
     }
 
+    @Override
     public void writeKeyValue(String key, String value) {
-        if (!enabled) return;
-
-        if (db == null) return;
-        logger.debug("writing key {} to memory DB", key);
-        try {
-            byte[] key1 = key.getBytes(Charset.forName("UTF-8"));
-            byte[] value1 = value.getBytes(Charset.forName("UTF-8"));
-            db.put(key1, value1);
-            displayStats();
-        } catch (Exception e) {
-            logger.error("unhandled exception when trying to write key " + key, e);
-        }
 
         if (key.startsWith("shape")) {
             ndb.getCollection("shapes").insert(Document.createDocument("key", key).put("value", value));
@@ -104,17 +68,39 @@ public class MemoryDB {
 
     }
 
+    @Override
     public void displayStats() {
-        if (!enabled) return;
-
-        HaloDBStats stats = db.stats();
-        logger.debug("halo DB stats: {}", stats.toString());
+        logger.debug("ndb DB stats: ");
+        showCollections();
     }
 
-    public String readKey(String key) {
-        if (!enabled) return null;
+    @Override
+    public void deleteSiriKey(String key) {
+        NitriteCollection c = ndb.getCollection("siri");
+        Iterator<Document> it = c.find(eq("key", key)).iterator();
+        if (it.hasNext()) {
+            logger.warn("found key {} in Nitrite siri", key);
+            Document doc = it.next();
+            c.remove(doc);
+            logger.warn("removed key {} in Nitrite siri", key);
+        }
+    }
 
-        if (db == null) return null;
+    @Override
+    public void deleteShapeKey(String key) {
+        NitriteCollection c = ndb.getCollection("shapes");
+        Iterator<Document> it = c.find(eq("key", key)).iterator();
+        if (it.hasNext()) {
+            logger.warn("found key {} in Nitrite shapes", key);
+            Document doc = it.next();
+            c.remove(doc);
+            logger.warn("removed key {} in Nitrite shapes", key);
+        }
+    }
+
+    @Override
+    public String readKey(String key) {
+        if (!nitriteEnabled) return null;
 
         // Nitrite
         try {
@@ -123,7 +109,9 @@ public class MemoryDB {
                 Iterator<Document> it = c.find(eq("key", key)).iterator();
                 if (it.hasNext()) {
                     logger.warn("found key {} in Nitrite shapes", key);
-                    return it.next().get("value", String.class);
+                    Document doc = it.next();
+
+                    return doc.get("value", String.class);
                 }
             }
             else {
@@ -134,22 +122,11 @@ public class MemoryDB {
                     return it.next().get("value", String.class);
                 }
             }
-            // reached here --> Nitrite does not have this key. coninue to HaloDB
+            // reached here --> Nitrite does not have this key. continue to HaloDB
+            return null;
         }
         catch (Exception ex) {
-
-        }
-        try {
-            byte[] key1 = key.getBytes(Charset.forName("UTF-8"));
-            byte[] value1 = db.get(key1);
-            if (value1 == null) {
-                return null;
-            }
-            String result = new String(value1, Charset.forName("UTF-8"));
-            logger.debug("read key {} completed", key);
-            return result;
-        } catch (HaloDBException e) {
-            logger.error("unhandled exception when trying to read key " + key, e);
+            logger.error("unhandled exception when trying to read key " + key, ex);
             return null;
         }
     }

@@ -6,10 +6,10 @@ import io.vavr.Tuple;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import io.vavr.collection.Set;
+import io.vavr.collection.Stream;
 import io.vavr.control.Option;
 import org.assertj.core.api.Assertions;
 import org.hasadna.gtfs.entity.StopData;
-import org.hasadna.gtfs.entity.StopsTimeData;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -18,16 +18,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -46,7 +38,7 @@ public class SiriDataTest {
     public void test1() {
 
         Stream<String> lines = siriData.readSiriGzipFile("/home/evyatar/logs/data/siri_rt_data.2019-04-04.8.log.gz");
-        lines.limit(100).filter(line -> line.length() > 1).forEach(line -> logger.info(line));
+        lines.take(100).filter(line -> line.length() > 1).forEach(line -> logger.info(line));
 
     }
 
@@ -87,7 +79,7 @@ public class SiriDataTest {
                 .readSeveralGzipFiles(names.toJavaArray(String.class))
                 .filter(line -> line.length() > 1)
                 .filter(line -> ROUTE_ID.equals(siriData.extractRouteId(line)));
-        logger.info("I got {} readings of routeId {}", lines.count(), ROUTE_ID);
+        logger.info("I got {} readings of routeId {}", lines.toList().size(), ROUTE_ID);
 
         io.vavr.collection.Stream <String> vLines =
                 lines.collect(io.vavr.collection.Stream.collector());
@@ -104,7 +96,7 @@ public class SiriDataTest {
                 .filter(line -> line.length() > 1)
                 .filter(line -> !line.endsWith(",0,0"))
                 .filter(line -> ROUTE_ID.equals(siriData.extractRouteId(line)));
-        logger.info("I got {} readings of routeId {}", lines.count(), ROUTE_ID);
+        logger.info("I got {} readings of routeId {}", lines.toList().size(), ROUTE_ID);
 
         io.vavr.collection.Stream <String> vLines =
                 lines.collect(io.vavr.collection.Stream.collector());
@@ -240,7 +232,7 @@ public class SiriDataTest {
         List<String> routes = List.of("8176");//, "15532");
         dates.forEach(date ->
             routes
-                    .map(routeId -> siriData.dayResults( routeId, date))
+                    .map(routeId -> siriData.dayResults( routeId, date, true))
                     .forEach(json -> logger.info(json))
                 //routeId -> dayResults( routeId, date))
         );
@@ -259,7 +251,7 @@ public class SiriDataTest {
         //String date = dates.head();
         dates.forEach(date ->
                         routes.forEach(
-                                routeId -> siriData.dayResults( routeId, date))
+                                routeId -> siriData.dayResults( routeId, date, true))
                 //routeId -> dayResults( routeId, date))
         );
     }
@@ -270,30 +262,28 @@ public class SiriDataTest {
         //Stops stops = new Stops("/home/evyatar/logs/work/2019-03/gtfs/" + "gtfs2019-03-01" + ".zip") ;
         stops.gtfsZipFileDirFullPath = "/home/evyatar/logs/work/2019-03/gtfs/" ;
         //stops.gtfsZipFileName = "gtfs2019-03-01" + ".zip";
-        java.util.Map<String, StopData> stopsMap = stops.readStopDataFromFile("gtfs2019-03-01" + ".zip");
+        Map<String, StopData> stopsMap = stops.readStopDataFromFile("gtfs2019-03-01" + ".zip");
 
-        java.util.List<String> dates =
-                io.vavr.collection.Stream.rangeClosed(4, 4)
+        List<String> dates =
+                Stream.rangeClosed(4, 4)
                 //io.vavr.collection.Stream.rangeClosed(1, 10)
                         .map(i -> Integer.toString(i))  //.collect(io.vavr.collection.Stream.collector());
                         .map(s -> (s.length()==1? ("0" + s) : s))
                         .map(s -> "2019-03-" + s)
-                        .asJava();
-        java.util.List<String> routes = Arrays.asList("15531");
+                        .toList();
+        List<String> routes = List.of("15531");
         //String date = dates.head();
-        java.util.List<String> jsonList =
-                 dates.parallelStream()
-            //dates.stream()
-                    .flatMap(date -> {
+        List<String> jsonList =
+                dates.flatMap(date -> {
                         logger.info("processing date {}", date);
-                        return routes.stream().map(
-                                routeId -> siriData.dayResults(routeId, date));
-                    })
-                    .collect(Collectors.toList()) ;
+                        return routes.map(
+                                routeId -> siriData.dayResults(routeId, date, true));
+                    }).toList();
+
                 //routeId -> dayResults( routeId, date))
         logger.info("there are {} json Strings in my list (one for each of the following dates: {})", jsonList.size(), dates);
         Assertions.assertThat(jsonList).isNotEmpty();
-        for (int i : IntStream.range(0, jsonList.size()).toArray()) {
+        for (int i : Stream.range(0, jsonList.size()).toArray()) {
             String json = jsonList.get(i);
             try {
                 logger.info("json String #{}, date={}", i, JsonPath.read(json, "$[0].date"));
@@ -335,7 +325,7 @@ public class SiriDataTest {
 
         String gtfsZipFileName = "gtfs2019-03-03.zip";
         String TRIP_ID = "36619570" ;
-        java.util.List<String> linesOfTrip = stops.readStopTimesFile(List.of(TRIP_ID).toJavaSet(), "2019-03-03").collect(Collectors.toList());
+        List<String> linesOfTrip = stops.readStopTimesFile(List.of(TRIP_ID).toSet(), "2019-03-03");
         if (linesOfTrip.isEmpty()) {
             logger.info(" GTFS file {} does not contain tripId {}", gtfsZipFileName, TRIP_ID);
         }

@@ -1,12 +1,13 @@
 package org.hasadna.gtfs.entity;
 
+import io.vavr.collection.List;
+import io.vavr.collection.Map;
 import org.hasadna.gtfs.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
+
 
 public class StopsTimeData {
 
@@ -65,10 +66,9 @@ public class StopsTimeData {
             logger.warn("WARNING: null or empty data about stops time!");
             return new StopFeatureCollection(new StopFeature[]{});  // empty
         }
-        List<StopFeature> sfs = stopsTimeData.keySet().stream()
+        List<StopFeature> sfs = stopsTimeData.keySet()
                 .map(stopSequenceStr ->
-                        createStopPart(stopsTimeData.get(stopSequenceStr)))
-                .collect(Collectors.toList());
+                        createStopPart(stopsTimeData.get(stopSequenceStr).get())).toList();
         StopFeature[] stopFeaturesArr = listToArray(sfs);
         return new StopFeatureCollection(stopFeaturesArr);
     }

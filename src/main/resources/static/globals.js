@@ -38,3 +38,32 @@ const agencyCodeToName = {
     "32": "DanBeerSheva",
     "30": "DanBatzafon"
 };
+
+function whenReceivingShape( json ) {
+    clog("whenReceivingShape: request for shape completed, json=" + json);
+    if (json) {
+        clog(json.substring(0, 400));
+    }
+    else {
+        clog("WARNING: empty json received from call to gtfs/shape/{routeId}/{date}");
+        sessionStorage.setItem("shapeOfSelectedRoute", "");
+        return;
+    }
+    clog("parsing json");
+    let shape = JSON.parse(json);
+    clog("request completed, received shape with length " + shape.shape.length);
+    // all lines above are not necessary - only for debug
+    sessionStorage.setItem("shapeOfSelectedRoute", JSON.stringify(shape.shape));
+    clog("completed storing shape");
+}
+
+function fetchShapeOfSelectedRoute(selectedDate, selectedRouteId) {
+    clog("requesting shape for route " + selectedRouteId + " on " + selectedDate);
+
+    //const url = 'gtfs/trips/' + date + '/' + routeId;
+    const url = 'gtfs/shape/' + selectedRouteId + '/' + selectedDate ;
+    $.ajax({
+        url: url
+    }).done(whenReceivingShape);
+
+}

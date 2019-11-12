@@ -2,31 +2,28 @@ package org.hasadna.gtfs.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.oath.halodb.HaloDB;
-import com.oath.halodb.HaloDBException;
-import com.oath.halodb.HaloDBOptions;
-import com.oath.halodb.HaloDBStats;
 import io.vavr.Tuple;
-import io.vavr.Tuple2;
-import io.vavr.Tuple3;
 import io.vavr.collection.*;
+import io.vavr.collection.List;
 import org.hasadna.gtfs.Spark;
+import org.hasadna.gtfs.db.MemoryDB;
 import org.hasadna.gtfs.entity.StopsTimeData;
 import org.hasadna.gtfs.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
+import java.awt.*;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @RestController
 public class GtfsController {
@@ -54,6 +51,8 @@ public class GtfsController {
     @Autowired
     MemoryDB db;
 
+    @Value("${tests.delete.prev.db.entry:false}")
+    public boolean deletePreviousEntry;
 
     @PostConstruct
     public void init() {
@@ -70,6 +69,60 @@ public class GtfsController {
         return "OK, elapsed: " + timeElapsed;
     }
 
+    @GetMapping(value = "siri/group1/{date}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public java.util.Map<String, java.util.Map<String, java.util.List<String>>> groupToTrips(@PathVariable String date) {
+        return groupToTrips(date, 15530, 15539);
+    }
+
+    @GetMapping(value = "siri/group/{date}/{fromRouteId}/{toRouteId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public java.util.Map<String, java.util.Map<String, java.util.List<String>>> groupToTrips(
+            @PathVariable String date, @PathVariable Integer fromRouteId, @PathVariable Integer toRouteId) {
+        logger.info("===> siri/group/{}",date);
+        logger.info("from={}", fromRouteId);
+        logger.info("to={}", toRouteId);
+        Map<String, Map<String, Stream<String>>> result = siriData.groupLinesOfEachRoute(
+                //List.of("10811", "10812", "10801", "10802", "10804", "10805", "10806", "10807")
+                List.rangeClosed(fromRouteId, toRouteId).map(number -> Integer.toString(number))
+                , date);
+        logger.info("<=== siri/group/{}",date);
+        java.util.Map<String,java.util.Map<String, java.util.List<String>>> retVal = convertToJavaMaps(result);
+        return retVal;
+    }
+
+    private java.util.Map<String,java.util.Map<String, java.util.List<String>>> convertToJavaMaps(Map<String, Map<String, Stream<String>>> result) {
+        java.util.HashMap mapRoutes = new java.util.HashMap<>();
+        result.keySet().forEach(key -> {
+            mapRoutes.put(key, convertToJava(result.get(key).get()));
+        });
+        return mapRoutes;
+    }
+
+    private java.util.Map<String, java.util.List<String>> convertToJava(Map<String, Stream<String>> map) {
+        java.util.HashMap<String, java.util.List<String>> mapTrips = new java.util.HashMap<>();
+        map.keySet().forEach(key -> {
+            mapTrips.put(key, map.get(key).map(stream -> stream.toJavaList()).getOrElse(new ArrayList<>()));
+        });
+        return mapTrips;
+    }
+
+
+    private java.util.Map<String,java.util.Map<Integer, StopsTimeData>> convertToJavaMaps2(Map<String, Map<Integer, StopsTimeData>> result) {
+        java.util.HashMap<String,java.util.Map<Integer, StopsTimeData>> mapRoutes = new java.util.HashMap<>();
+        result.keySet().forEach(key -> {
+            mapRoutes.put(key, convertToJava2(result.get(key).get()));
+        });
+        return mapRoutes;
+    }
+
+    private java.util.Map<Integer, StopsTimeData> convertToJava2(Map<Integer, StopsTimeData> result) {
+        java.util.HashMap<Integer, StopsTimeData> mapStops = new java.util.HashMap<>();
+        result.keySet().forEach(key -> {
+            mapStops.put(key, result.getOrElse(key, null));
+        });
+        return mapStops;
+    }
+
+
     /**
      * Assuming that the shape of a route does not change at all!
      * So no argument for date
@@ -82,8 +135,11 @@ public class GtfsController {
         String result = "";
 
         final String key = generateKey("shape", routeId, date);
+        if (deletePreviousEntry) {
+            db.deleteShapeKey(key);
+        }
         String fromDB = db.readKey(key);
-        if (fromDB != null) {
+        if (!deletePreviousEntry && (fromDB != null)) {
             result = fromDB;
         }
         else {
@@ -107,28 +163,35 @@ public class GtfsController {
 
 
     @GetMapping("gtfs/stops/{routeId}/{tripId}/{date}")
+    //List<TripData> tripsData
     public java.util.Map<String, java.util.Map<Integer, StopsTimeData>> generateStopsMap2(@PathVariable final String routeId, @PathVariable final String tripId, @PathVariable final String date ) {
-        java.util.Map result = stops.generateStopsMap1(HashSet.of(tripId).toJavaSet(), date);
-        if (!result.isEmpty()) {
-            return result;
+        logger.info("===> gtfs/stops/{}/{}/{}",routeId, tripId, date);
+        try {
+            Map result = stops.generateStopsMap1(HashSet.of(tripId), date);
+            if (!result.isEmpty()) {
+                return convertToJavaMaps2(result);
+            } else {  // empty - usual method of searching tripId in GTFS stops_time.txt failed.
+                java.util.Map<String, java.util.Map<Integer, StopsTimeData>> res = new java.util.HashMap<>();
+                return res;
+            }
         }
-        else {  // empty - usual method of searching tripId in GTFS stops_time.txt failed.
-return null;
+        finally {
+            logger.info("<=== gtfs/stops/{}/{}/{}",routeId, tripId, date);
         }
     }
 
 
     public java.util.Map<String, java.util.Map<Integer, StopsTimeData>> generateStopsMap2(final TripData tripData, final String date ) {
         String tripId = tripData.getSiriTripId();
-        java.util.Map result = stops.generateStopsMap1(HashSet.of(tripId).toJavaSet(), date);
+        Map result = stops.generateStopsMap1(HashSet.of(tripId), date);
         if (!result.isEmpty()) {
-            return result;
+            return result.toJavaMap();
         }
         // empty - usual method of searching tripId in GTFS stops_time.txt failed.
         if (tripData.getAlternateTripId() != null) {
-            result = stops.generateStopsMap1(HashSet.of(tripData.getAlternateTripId()).toJavaSet(), date);
+            result = stops.generateStopsMap1(HashSet.of(tripData.getAlternateTripId()), date);
             if (!result.isEmpty()) {
-                return result;
+                return result.toJavaMap();
             }
         }
         Map<Integer, StopsTimeData> stopsTimeDataMap = findAlternateTripId(tripData.getRouteId(), tripData.getOriginalAimedDeparture(), date);
@@ -180,56 +243,109 @@ return null;
     }
 
     @GetMapping("gtfs/stops/{tripId}/{date}")
-    public java.util.Map<String, java.util.Map<Integer, StopsTimeData>> generateStopsMap1(@PathVariable final String tripId, @PathVariable final String date ) {
-        return stops.generateStopsMap1(HashSet.of(tripId).toJavaSet(), date);
+    public Map<String, Map<Integer, StopsTimeData>> generateStopsMap1(@PathVariable final String tripId, @PathVariable final String date ) {
+        logger.info("===> gtfs/stops/{}/{}", tripId, date);
+        try {
+            return stops.generateStopsMap1(HashSet.of(tripId), date);
+        }
+        finally {
+            logger.info("<=== gtfs/stops/{}/{}", tripId, date);
+        }
+
     }
 
     @GetMapping("siri/trips/full/{routeId}/{date}")
     public java.util.List<TripData> siriFullTripData(@PathVariable final String routeId, @PathVariable final String date) {
-        Map<String, io.vavr.collection.Stream<String>> trips = siriData.findAllTrips(routeId, date);
-        //java.util.List<TripData> data = siriData.buildTripData(trips, date, routeId);
-        List<TripData> fullData = siriData.buildFullTripsData(trips, date, routeId);
-        return fullData;
+        logger.info("===> siri/trips/full/{}/{}", routeId, date);
+        try {
+            Map<String, io.vavr.collection.Stream<String>> trips = siriData.findAllTrips(routeId, date);
+            //java.util.List<TripData> data = siriData.buildTripData(trips, date, routeId);
+            List<TripData> fullData = siriData.buildFullTripsData(trips, date, routeId);
+            return fullData.toJavaList();
+        }
+        finally {
+            logger.info("<=== siri/trips/full/{}/{}", routeId, date);
+        }
+    }
+
+    @GetMapping("gtfs/trips/data/{routeId}/{date}")
+    public java.util.List<TripData> gtfsTripData(@PathVariable final String routeId, @PathVariable final String date) {
+        logger.info("===> gtfs/trips/data/{}/{}", routeId, date);
+        try {
+            List<TripData> data = siriData.buildTripData(date, routeId);
+            return data.toJavaList();
+        }
+        finally {
+            logger.info("<=== gtfs/trips/data/{}/{}", routeId, date);
+        }
     }
 
     @GetMapping("siri/trips/data/{routeId}/{date}")
     public java.util.List<TripData> siriTripData(@PathVariable final String routeId, @PathVariable final String date) {
-        Map<String, io.vavr.collection.Stream<String>> trips = siriData.findAllTrips(routeId, date);
-        java.util.List<TripData> data = siriData.buildTripData(trips, date, routeId);
-        return data;
+        logger.info("===> siri/trips/data/{}/{}", routeId, date);
+        try {
+            Map<String, io.vavr.collection.Stream<String>> trips = siriData.findAllTrips(routeId, date);
+            List<TripData> data = siriData.buildTripData_orig(trips, date, routeId);
+            return data.toJavaList();
+        }
+        finally {
+            logger.info("<=== siri/trips/data/{}/{}", routeId, date);
+        }
     }
 
     @GetMapping("siri/trips/short/{routeId}/{date}")
     public Object findAllTrips(@PathVariable final String routeId, @PathVariable final String date) throws IOException {
-        String result = "{\"route\": " + routeId + ", \"date\": \"" + date + "\", \"trips\": [";
-        Map<String, io.vavr.collection.Stream<String>> trips = siriData.findAllTrips(routeId, date);
-        for (String tripId : trips.keySet()) {
-            long numberOfLines = trips.get(tripId).getOrElse(Stream.empty()).count(line -> true);
-            result = result + "{\"tripId\": " + tripId + ", \"lines\": " + numberOfLines + "},";
+        logger.info("===> siri/trips/short/{}/{}", routeId, date);
+        try {
+            String result = "{\"route\": " + routeId + ", \"date\": \"" + date + "\", \"trips\": [";
+            Map<String, io.vavr.collection.Stream<String>> trips = siriData.findAllTrips(routeId, date);
+            for (String tripId : trips.keySet()) {
+                long numberOfLines = trips.get(tripId).getOrElse(Stream.empty()).count(line -> true);
+                result = result + "{\"tripId\": " + tripId + ", \"lines\": " + numberOfLines + "},";
+            }
+            // remove last ","
+            result = result.substring(0, result.length() - 1);
+            result = result + "]}";
+            return ( new ObjectMapper() ).readValue(result, Object.class);
         }
-        // remove last ","
-        result = result.substring(0, result.length() - 1);
-        result = result + "]}";
-        return ( new ObjectMapper() ).readValue(result, Object.class);
+        finally {
+            logger.info("<=== siri/trips/short/{}/{}", routeId, date);
+        }
     }
 
     @GetMapping("siri/day/{routeId}/{date}")
     public String retrieveSiriAndGtfsDataForRouteAndDateAsJson(@PathVariable String routeId, @PathVariable String date) {
-        //spark.populateDayResults(date);     // will take a long time!!!
-        final String DATA_KIND = "siri";
-
+        String DATA_KIND = "siri";
+        ///////////////////////////
+        // here specifically hard code the value false
+        // (but in general it should be true)
+        ///////
+        //boolean withReadingSiriLogs = false;
+        boolean withReadingSiriLogs = true;
+        //
+        //////////////
         logger.info("===> siri/day/{}/{}",routeId,date);
 
+        if (!withReadingSiriLogs) {
+            DATA_KIND = "gtfs";
+        }
         final String key = generateKey(DATA_KIND, routeId, date);
+        if (deletePreviousEntry) {
+            db.deleteSiriKey(key);
+        }
         String fromDB = db.readKey(key);
         if ((fromDB != null) && !"[]".equals(fromDB)) {
             logger.debug("found value for key {} in memoryDB", key);
             logger.info("<=== siri/day/{}/{}",routeId,date);
             return fromDB;
         }
+        logger.debug("key {} not found in memory DB");
 
 
-        String result = siriData.dayResults(routeId, date);
+
+        // if false - the results will not contain Siri points of the bus.
+        // Only shape, and stops - These are taken from GTFS. But we save a lot of time by not reading siri logs
+        String result = siriData.dayResults(routeId, date, withReadingSiriLogs);
 
         if (result != null) {
             logger.info("writing value of key {} to memoryDB", key);
@@ -243,13 +359,13 @@ return null;
     // In general this part is done offline by another application.
     // It fills tha HaloDB with data processed from the raw data
     public void fillValuesForMonth(String routeId) {
-        List<String> dates = new ArrayList<>();
+        List<String> dates = List.empty();
         for (int i = 1 ; i < 16 ; i++) {
             String s = Integer.toString(i);
             if (s.length() == 1) {
                 s = "0" + s ;
             }
-            dates.add("2019-08-" + s);
+            dates.append("2019-08-" + s);
         }
         for (String date : dates) {
             retrieveSiriAndGtfsDataForRouteAndDateAsJson(routeId, date);
@@ -263,7 +379,7 @@ return null;
         String json = null;
         try {
             logger.info("finding all GTFS routes for date {} ...", date);
-            json = gtfsRoutes.allRoutesAsJson(date);
+            json = gtfsRoutes.allRoutesAsJson(date);    // this call is cached`
             logger.info("<=== gtfs/lines/{}",date);
         } catch (JsonProcessingException e) {
             logger.error("exception while converting to JSON", e);
@@ -292,7 +408,7 @@ return null;
                                 Utils.extractAimedDeparture(trips.getOrElse(key, Stream.empty()).head()),
                                 trips.getOrElse(key, Stream.empty()).size())  )
                         .map(tup -> ShortTrip.of(tup._1, tup._2, tup._3))
-                        .toJavaList();
+                        .toList();
         ObjectMapper x = new ObjectMapper();
         String json = x.writeValueAsString(tripsSummary);
         logger.debug("                  ... Done");
@@ -327,18 +443,9 @@ return null;
 
     private List<ShortTrip> minimize(List<TripData> trips) {
         return trips
-                .stream()
-                .map(tripData -> ShortTrip.of(tripData.getSiriTripId(), tripData.getOriginalAimedDeparture()))
-                .collect(Collectors.toList());
+                .map(tripData -> ShortTrip.of(tripData.getSiriTripId(), tripData.getOriginalAimedDeparture()));
     }
 
-//    @GetMapping("gtfs/lines/{date}")
-//    public String genericAPI(@PathVariable String date) {
-//        String json = "";
-//        logger.info("===> gtfs/lines/{}",date);
-//        logger.info("<=== gtfs/lines/{}",date);
-//        return json;
-//    }
 
 
 
@@ -410,7 +517,7 @@ return null;
     public String calcShapesOnDate(@RequestParam String date, @RequestParam String routeIds) {
         logger.info("shapes for date={} routeIds={}", date, routeIds);
         long start = System.nanoTime();
-        List<String> routes = Arrays.asList( routeIds.split(",") );
+        List<String> routes = List.of( routeIds.split(",") );
         for (String routeId : routes) {
             logger.info("retrieve shape for {} ...", routeId);
             retrieveShapeOfRouteAsJson(routeId, date);
@@ -426,19 +533,19 @@ return null;
         String json = retrieveAllLinesByDate(date); // json looks like this: [{"routeId":"1","agencyCode":"25","shortName":"1","from":"ת. רכבת יבנה מערב-יבנה","to":"ת. רכבת יבנה מזרח-יבנה"},{"routeId":"2","agencyCode":"25","shortName":"1","from":"ת. רכבת יבנה מזרח-יבנה","to":"ת. רכבת יבנה מערב-יבנה"},
 
         ObjectMapper x = new ObjectMapper();
-        List<Object> objs = x.readValue(json, List.class);
-        List<String> routeIds = new ArrayList<>();
-        for (Object obj : objs) {
-            java.util.LinkedHashMap<String, String> map = (java.util.LinkedHashMap)obj;
+        java.util.List<java.util.LinkedHashMap<String, String>> objs = x.readValue(json, java.util.List.class);
+        List<String> routeIds = List.empty();
+        for (java.util.LinkedHashMap<String, String> obj : objs) {
+            java.util.LinkedHashMap<String, String> map = obj;
             if (map.containsKey("agencyCode") && map.containsKey("routeId")) {
                 if (map.get("agencyCode").equals(agency)) {
                     //logger.info("{}", map.get("routeId"));
-                    routeIds.add(map.get("routeId"));
+                    routeIds.append(map.get("routeId"));
                 }
             }
         }
         logger.info("found routes: " + routeIds);
-        String routeIdsAsOneStr = routeIds.stream().collect(Collectors.joining(","));
+        String routeIdsAsOneStr = routeIds.collect(Collectors.joining(","));
         logger.info("retreiving shapes...");
         String resultSummary = calcShapesOnDate(date, routeIdsAsOneStr);
         logger.info(resultSummary);
@@ -446,9 +553,18 @@ return null;
     }
 
 
-    @GetMapping("siriForDateAndRoutes")
-    public String routesForDate(@RequestParam String date, @RequestParam String routeIds) {
-        List<String> routes = Arrays.asList( routeIds.split(",") );
+    @GetMapping("siriForDateAndRouteFromTo/{date}/{fromRouteId}/{toRouteId}")
+    public String routesForDate(@PathVariable String date, @PathVariable String fromRouteId, @PathVariable String toRouteId) {
+        List<Integer> routes = Stream.rangeClosed(Integer.parseInt(fromRouteId), Integer.parseInt(toRouteId)).toList();
+        String routeIds = routes.map(i -> Integer.toString(i)).collect(java.util.stream.Collectors.joining(","));
+        //String routeIds = routes.toString();
+
+        return routesForDate(date, routeIds);
+    }
+    @GetMapping("siriForDateAndRoutes/{date}")
+    public String routesForDate(@PathVariable String date, @RequestParam String routeIds) {
+        // for BS Routes use: 16211,16212,15540,15541,15494,15495,15491,8482,15489,15490,15487,15488,15485,15437,15444,15440,15441,15442,15443,15438,15439,8477,8480,15523,15524,15525,15526,15544,15545,15527,15528,15552,15553,15529,15530,16066,16067,15531,15532,6660,6661,6656
+        List<String> routes = List.of( routeIds.split(",") );
         for (String routeId : routes) {
             long start = System.nanoTime();
             retrieveSiriAndGtfsDataForRouteAndDateAsJson(routeId, date);
@@ -459,25 +575,25 @@ return null;
         return "OK";
     }
 
-    @GetMapping("siriForAgency")
-    public String calcSiriForAllRoutesOfAgencyOnDate(@RequestParam String date, @RequestParam String agency) throws IOException {
+    @GetMapping("siriForAgency/{date}/{agency}")
+    public String calcSiriForAllRoutesOfAgencyOnDate(@PathVariable String date, @PathVariable String agency) throws IOException {
 
         String json = retrieveAllLinesByDate(date); // json looks like this: [{"routeId":"1","agencyCode":"25","shortName":"1","from":"ת. רכבת יבנה מערב-יבנה","to":"ת. רכבת יבנה מזרח-יבנה"},{"routeId":"2","agencyCode":"25","shortName":"1","from":"ת. רכבת יבנה מזרח-יבנה","to":"ת. רכבת יבנה מערב-יבנה"},
 
         ObjectMapper x = new ObjectMapper();
         List<Object> objs = x.readValue(json, List.class);
-        List<String> routeIds = new ArrayList<>();
+        List<String> routeIds = List.empty();
         for (Object obj : objs) {
             java.util.LinkedHashMap<String, String> map = (java.util.LinkedHashMap)obj;
             if (map.containsKey("agencyCode") && map.containsKey("routeId")) {
                 if (map.get("agencyCode").equals(agency)) {
                     //logger.info("{}", map.get("routeId"));
-                    routeIds.add(map.get("routeId"));
+                    routeIds.append(map.get("routeId"));
                 }
             }
         }
         logger.info("found routes: " + routeIds);
-        String routeIdsAsOneStr = routeIds.stream().collect(Collectors.joining(","));
+        String routeIdsAsOneStr = routeIds.collect(Collectors.joining(","));
         logger.info("retreiving siri...");
         String resultSummary = routesForDate(date, routeIdsAsOneStr);
         logger.info(resultSummary);
@@ -488,6 +604,31 @@ return null;
     public String halt() {
         System.exit(1);
         return "OK";
+    }
+
+    @GetMapping("gtfs/distance/calc/{fromlat}/{fromlon}/{tolat}/{tolon}/{routeId}/{date}")
+    public String retrieveTripsOfRouteFromGtfsTripIdToDate(@PathVariable String fromlat, @PathVariable String fromlon,
+                                                           @PathVariable String tolat, @PathVariable String tolon,
+                                                           @PathVariable String routeId, @PathVariable String date
+    ) throws JsonProcessingException {
+        return retrieveTripsOfRouteFromGtfsTripIdToDate(fromlat, fromlon, tolat, tolon, routeId, date, "70", "2");
+    }
+
+    // using http://localhost:8080/gtfs/distance/calc/31.711458/34.990584/32.082706/34.797251/15544/2019-10-27/71/2
+    // seems to be matching best the distances of GTFS between stops.
+    // TODO check same values with shaply.project()
+    @GetMapping("gtfs/distance/calc/{fromlat}/{fromlon}/{tolat}/{tolon}/{routeId}/{date}/{precision}/{method}")
+    public String retrieveTripsOfRouteFromGtfsTripIdToDate(@PathVariable String fromlat, @PathVariable String fromlon,
+                                                           @PathVariable String tolat, @PathVariable String tolon,
+                                                           @PathVariable String routeId, @PathVariable String date,
+                                                           @PathVariable String precision, @PathVariable String method
+                                                           ) throws JsonProcessingException {
+        String json = "";
+        logger.info("===> gtfs/distance/calc/{}/{}/{}/{}/{}/{}",fromlat,fromlon, tolat,tolon, routeId,date);
+        String distance = siriData.calcDistance(routeId, date, new String[]{fromlat, fromlon}, new String[]{tolat, tolon}, precision, method);
+        json = distance;
+        logger.info("<=== gtfs/distance/calc/{}/{}/{}/{}/{}/{}",fromlat,fromlon, tolat,tolon, routeId,date);
+        return json;
     }
 
 }

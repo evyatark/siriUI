@@ -40,7 +40,7 @@ public class Meanwhile {
         String date="2019-05-24";
         for (Routes.RouteData route : routes.allRoutesByDate(date)) {
             logger.info("{}...", route.routeId);
-            String json = siriData.dayResults(route.routeId, date);
+            String json = siriData.dayResults(route.routeId, date, true);
             logger.info("{},{} ==> {}", route.routeId, date, json);
         }
         logger.warn("=========== Done for {}  ==========", date);
@@ -55,7 +55,7 @@ public class Meanwhile {
 
         for (Routes.RouteData route : routes.allRoutesByDate(date)) {
             taskList.add(
-                    () -> siriData.dayResults(route.routeId, date)
+                    () -> siriData.dayResults(route.routeId, date, true)
             );
         }
 

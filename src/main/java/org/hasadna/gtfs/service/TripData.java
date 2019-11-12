@@ -2,7 +2,6 @@ package org.hasadna.gtfs.service;
 
 import org.hasadna.gtfs.entity.StopsTimeData;
 
-import java.util.List;
 import java.util.Map;
 
 public class TripData {

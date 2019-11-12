@@ -30,7 +30,7 @@ public class Spark {
     }
 
     public String generateJsonForRouteAndDate(String routeId, String date) {
-        return siriData.dayResults(routeId, date);
+        return siriData.dayResults(routeId, date, true);
     }
 
     public java.util.Map<String, String> generateJsonForAllRoutes(List<String> routeIds, String date) {
@@ -52,7 +52,7 @@ public class Spark {
     public List<String> allRouteIdsFromGtfsByDate(String date) {
         Routes r = new Routes();
         // from GTFS of date:
-        java.util.List<Routes.RouteData> routes = r.allRoutesByDate(date);
+        List<Routes.RouteData> routes = r.allRoutesByDate(date);
         List<String> routeIds = List.ofAll(routes).map(routeData -> routeData.routeId);
         return routeIds;
     }

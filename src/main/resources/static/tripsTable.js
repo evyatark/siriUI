@@ -115,7 +115,7 @@ function populateTripsGrid(routeId, allTripsOfDay, date) {
     tableElement.innerHTML = innerHTML;
     prepareHide();
     //clog("completed populating");
-    retrieveReport(date, routeId);
+    //retrieveReport(date, routeId);    // currently does nothing
 }
 
 function prepareHide() {
@@ -153,23 +153,7 @@ function whenReceivingTrips( json ) {
     $('#while_waiting').hide();
 }
 
-function whenReceivingShape( json ) {
-    clog("whenReceivingShape: request for shape completed, json=" + json);
-    if (json) {
-        clog(json.substring(0, 400));
-    }
-    else {
-        clog("WARNING: empty json received from call to gtfs/shape/{routeId}/{date}");
-        sessionStorage.setItem("shapeOfSelectedRoute", "");
-        return;
-    }
-    clog("parsing json");
-    let shape = JSON.parse(json);
-    clog("request completed, received shape with length " + shape.shape.length);
-    // all lines above are not necessary - only for debug
-    sessionStorage.setItem("shapeOfSelectedRoute", JSON.stringify(shape.shape));
-    clog("completed storing shape");
-}
+
 
 function fetchAllTripsForDayAndLine(date, routeId) {
     clog("sending request for " + date + " and " + routeId);
@@ -181,16 +165,6 @@ function fetchAllTripsForDayAndLine(date, routeId) {
     }).done(whenReceivingTrips);
 }
 
-function fetchShapeOfSelectedRoute(selectedDate, selectedRouteId) {
-    clog("requesting shape for route " + selectedRouteId + " on " + selectedDate);
-
-    //const url = 'gtfs/trips/' + date + '/' + routeId;
-    const url = 'gtfs/shape/' + selectedRouteId + '/' + selectedDate ;
-    $.ajax({
-        url: url
-    }).done(whenReceivingShape);
-
-}
 
 $(document).ready(function() {
     clog("tripsTable.js - ready() started");
@@ -201,9 +175,12 @@ $(document).ready(function() {
 
     selectedDate = sessionStorage.getItem("selectedDate");
     clog('selectedDate='+selectedDate);
-    clog("call fetchAllTrips");
-    fetchAllTripsForDayAndLine(selectedDate, selectedRouteId); //"2019-04-18");
+
     clog("call fetchShape");
     fetchShapeOfSelectedRoute(selectedDate, selectedRouteId); // store in "shapeOfSelectedRoute"
+    ////////////////////////////////// temporarily disable retrieval of stops
+    clog("call fetchAllTrips");
+    fetchAllTripsForDayAndLine(selectedDate, selectedRouteId); //"2019-04-18");
+    /////////////////////////////////
     clog("tripsTable.js - ready() completed");
 });

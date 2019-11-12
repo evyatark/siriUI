@@ -1,9 +1,10 @@
 package org.hasadna.gtfs.service;
 
+import io.vavr.collection.Stream;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 
 public class GZIPFiles {
@@ -35,7 +36,7 @@ public class GZIPFiles {
             throw new UncheckedIOException(e);
         }
         BufferedReader reader = new BufferedReader(new InputStreamReader(gzipIs));
-        return reader.lines().onClose(() -> closeSafely(reader));
+        return Stream.ofAll(reader.lines().onClose(() -> closeSafely(reader)));
     }
 
     private static void closeSafely(Closeable closeable) {

@@ -129,6 +129,8 @@ $(document).ready(function () {
         clog("selected: routeId=" + routeId + ", line name=" + shortPublishedName);
         selectedRouteId = routeId;
         sessionStorage.setItem("selectedRouteId", routeId);
+        clog("nullify shape is sessionStorage");
+        sessionStorage.setItem("shapeOfSelectedRoute", ""); // nullify current shape in sessionStorage
         const arr = JSON.parse( sessionStorage.getItem("allRoutesOfDay"));   // array of {routeId, shortName, to, from, agencyCode
         const selectedItems = arr.filter(item => routeId == item.routeId);
         if (selectedItems != undefined && selectedItems.length > 0) {

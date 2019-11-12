@@ -32,25 +32,25 @@ public class Routes {
 
     @Cacheable("routeIdsByDate")
     public String allRoutesAsJson(String date) throws JsonProcessingException {
-        java.util.List<RouteData> routes = allRoutesByDate(date);
+        List<RouteData> routes = allRoutesByDate(date);
         logger.info("found {} routes on date {}", routes.size(), date);
 
         logger.debug("converting to JSON...");
         ObjectMapper x = new ObjectMapper();
-        String json = x.writeValueAsString(routes);
+        String json = x.writeValueAsString(routes.toJavaList());
         logger.debug("                  ... Done");
         logger.trace(json.substring(0, Math.min(3000, json.length())));logger.info("return json (size={} characters)", json.length());
         return json;
     }
 
-    public java.util.List<RouteData> allRoutesByDate(String date) {
+    public List<RouteData> allRoutesByDate(String date) {
         final String gtfsZipFileName = "gtfs" + date + ".zip";
         String gtfsZipFileFullPath = Utils.findFile(gtfsZipFileDirFullPath, gtfsZipFileName);
         if (null == gtfsZipFileFullPath) {
             gtfsZipFileFullPath = Utils.ensureFileExist(Utils.createFilePath(gtfsZipFileDirFullPath, gtfsZipFileName));
         }
         logger.debug("collect routes...");
-        java.util.List<RouteData> routes = collectAllRoutes(gtfsZipFileFullPath);
+        List<RouteData> routes = collectAllRoutes(gtfsZipFileFullPath);
         logger.debug("{} routes.", routes.size());
         return routes;
     }
@@ -85,28 +85,28 @@ public class Routes {
         final String gtfsZipFileFullPath = gtfsZipFileDirFullPath + gtfsZipFileName;
 
         logger.info("collect routes...");
-        java.util.List<RouteData> routes = collectRoutes(onlyTheseRoutes, gtfsZipFileFullPath);
+        List<RouteData> routes = collectRoutes(onlyTheseRoutes, gtfsZipFileFullPath);
 
         logger.info("converting to JSON...");
         ObjectMapper x = new ObjectMapper();
-        String json = x.writeValueAsString(routes);
+        String json = x.writeValueAsString(routes.toJavaList());
         logger.info("                  ... Done");
         return json;
     }
 
     // TODO maybe return a stream, not a list?
-    public java.util.List<RouteData> collectRoutes(List<String> onlyTheseRoutes, String gtfsZipFileFullPath) {
+    public List<RouteData> collectRoutes(List<String> onlyTheseRoutes, String gtfsZipFileFullPath) {
         return (new ReadZipFile()).routesFromFile(gtfsZipFileFullPath)
                 .filter(line -> onlyTheseRoutes.contains(extractRouteId(line)))
                 .map(line -> new RouteData(extractRouteId(line),extractAgencyCode(line), extractShortName(line), extractFrom(line), extractDestination(line)))
-                .toJavaList();
+                .toList();
     }
 
-    public java.util.List<RouteData> collectAllRoutes(String gtfsZipFileFullPath) {
+    public List<RouteData> collectAllRoutes(String gtfsZipFileFullPath) {
         return (new ReadZipFile()).routesFromFile(gtfsZipFileFullPath)
                 .filter(line -> !"2".equals(extractAgencyCode(line)))   // 2 = Trains
                 .map(line -> createRouteData(line))
-                .toJavaList();
+                .toList();
     }
 
     private RouteData createRouteData(String line) {
