@@ -49,6 +49,7 @@ public class TripData {
     }
     */
 
+
     public String getAlternateTripId() {
         return alternateTripId;
     }

@@ -29,23 +29,29 @@ function populateTripsGrid(routeId, allTripsOfDay, date) {
         let agency = lineDetails.agencyName;
         let desc = lineDetails.description;
         let actualDeparture = lineDetails.actualDeparture;
+        let special = "";
+        let rowBackground = "info";
         if (lineDetails.suspicious) {
             status = "Suspicious";
         }
         if (lineDetails.dns) {
             status = status + " " + "DNS";
+            special = " suspicious";
         }
         let label = "lable-info";
         if (lineDetails.suspicious) {
             label = "label-warning";
+            rowBackground = "warning";
         }
-        if (lineDetails.dns) {
+        else if (lineDetails.dns) {
             label = "label-danger";
+            rowBackground = "danger";
         }
         else {
             status = "OK";
+            rowBackground = "info";
         }
-        let tr1 = ' <tr class="clickable warning dropdown-deliverable" data-for="#details_' + i + '">\n' +
+        let tr1 = ' <tr class="clickable dropdown-deliverable' + ' ' + rowBackground + '" data-for="#details_' + i + '">\n' +
             '                <td>' + shortName + '</td>\n' +
             '                <td>' + tripId + '</td>\n' +
             '                <td>'+ oad +'</td>\n' +

@@ -104,23 +104,35 @@
         <div id="options1" style="width: 90%; height: 80px; background-color: #f7e1b5; margin-top: 0px">
             <div id="horizontal" >
                 <div class="form-check form-check-inline">
-
                     <label class="checkbox-inline">
-                        <input type="checkbox" value="" id="t1">
-                        Stops tooltip always on
+                        <input type="checkbox" value="" id="chk_siri" checked>
+                        Siri - Bus Markers
                     </label>
                     <label class="checkbox-inline">
-                        <input type="checkbox" value="" id="t2">
+                        <input type="checkbox" value="" id="chk_stops" checked>
+                        GTFS - Stops markers
+                    </label>
+                    <label class="checkbox-inline">
+                        <input type="checkbox" value="" id="chk_shape" checked>
+                        GTFS - Shape of Route
+                    </label>
+                    <label class="checkbox-inline">
+                        <input type="checkbox" value="" id="chk_siri_tooltip" >
                         Buses tooltip always on
                     </label>
                 </div>
             </div>
 
             <div class="form-check">
-                <input class="form-check-input" type="button"  value="view full shape" id="v1">
+                <input class="form-check-input" type="button"  value="Clean Map" id="v1">
+                <input class="form-check-input" type="button"  value="Toggle Stops" id="vv2">
+                <input class="form-check-input" type="button"  value="Toggle Bus Markers" id="vv3">
+                <input class="form-check-input" type="button"  value="Toggle Shape" id="vv4">
+                <br/>
                 <input class="form-check-input" type="button"  value="distance between stops" id="v2">
                 <input type="text" id="v3">
                 <input type="text" id="v4">
+                <input type="text" id="v5">
             </div>
         </div>
 

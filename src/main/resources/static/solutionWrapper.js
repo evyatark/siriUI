@@ -6,6 +6,15 @@ var allTripsFromJs;
 var selectedRouteId ;
 
 
+var tripIdsOnMap = [];
+const defaultDisplayOptionsInWrapper = {
+    displaySiri: true,
+    displayStops: true,
+    displayShape: true,
+    displaySiriTooltipAlways: false
+};
+var displayOptionsInWrapper ;//= defaultDisplayOptionsInWrapper;
+
 // expects date as a String in format "2019-03-31"
 function fetchAllTripsForDay(routeId, date) {
     const url = 'siri/day/' + routeId + "/" + date;
@@ -17,7 +26,7 @@ function fetchAllTripsForDay(routeId, date) {
             clog("request completed, received " +
                     allTripsFromJs.gtfsTrips.length);
 
-            populateTripsGrid(allTripsFromJs);
+            populateTripsGrid(allTripsFromJs, routeId, date);
             clog("completed populating grid");
         });
 }
@@ -43,6 +52,25 @@ function fetchJustStops(routeId, date) {
         });
 }
 
+function removeLeadingZero(str) {
+    if ((str) && (str[0] == '0')) {
+        str = str[1];
+    }
+    return str;
+}
+
+function onlyHour(fullOad, date) {
+    let oad = fullOad;
+    if (fullOad.includes(date) && fullOad.includes("T")) {
+        oad = fullOad.split("T")[1];
+        let temp = oad.split(":");
+        if (temp.length == 3) {
+            oad = removeLeadingZero(temp[0]) + ":" + temp[1];
+        }
+    }
+    return oad;
+}
+
 // changes the document by adding more lines to the table in element "all_lines"
 // the new rows come from allTrips - the argument to this function.
 // Called when this page loads.
@@ -50,20 +78,25 @@ function fetchJustStops(routeId, date) {
 //
 // argument allTrips is an object with format like the sample in allTrips.js
 //
-function populateTripsGrid(allTrips) {
+function populateTripsGrid(allTrips, routeId, date) {
     const tableElement = document.getElementById('all_lines');
     const trips = allTrips.gtfsTrips.reverse();
     for (let i = 0; i < trips.length; i++) {
+        let background = "info";
         let trip = trips[i];
         let tripId = trip.siriTripId;
         let vid = trip.vehicleId;
         if (true == trip.dns) {
             vid = "DNS";
+            background = "danger";
         }
-        let oad = trip.originalAimedDeparture;
-        // generate td
-        let td = "<tr class=\"clickable-row\"><td>" + oad + "</td><td>" + tripId + "</td><td>" + vid + "</td></tr>";
-        tableElement.innerHTML = td + tableElement.innerHTML;
+        if (trip.suspicious) {
+            background = "warning";
+        }
+        let oad = onlyHour(trip.originalAimedDeparture, date);  // display only hour (if this hour is in the same day
+        // generate tr
+        let tr = "<tr class=\"clickable-row " + background + "\"><td>" + oad + "</td><td>" + tripId + "</td><td>" + vid + "</td></tr>";
+        tableElement.innerHTML = tr + tableElement.innerHTML;
     }
 }
 
@@ -99,14 +132,50 @@ function populateBusHeader(selectedRouteId, selectedDate) {
 /*
 Please consider that the JS part isn't production ready at all, I just code it to show the concept of merging filters and titles together !
 */
-$(document).ready(function(){
+$(document).ready(function() {
+    // init displayOptions
+    displayOptionsInWrapper = defaultDisplayOptionsInWrapper;
+    $('#chk_siri').change(function(ev) {
+        //console.log("chk_siri changed");
+        displayOptionsInWrapper.displaySiri=ev.target.checked;
+        iframe.contentWindow.toggleSiri(currentTripId);
+        //console.log(displayOptionsInWrapper);
+    });
+    $('#chk_stops').change(function(ev) {
+        displayOptionsInWrapper.displayStops=ev.target.checked;
+        iframe.contentWindow.toggleStops(currentTripId);
+    });
+    $('#chk_shape').change(function(ev) {
+        displayOptionsInWrapper.displayShape=ev.target.checked;
+        iframe.contentWindow.toggleShape(currentTripId);
+    });
+    $('#chk_siri_tooltip').change(function(ev) {
+        displayOptionsInWrapper.displaySiriTooltipAlways=ev.target.checked;
+    });
+
     $('#v1').on('click',function(ev) {
-        console.log("clicked button v1, go to display shape");
         console.log(ev);
-        iframe.contentWindow.displayJustShape();
+        //iframe.contentWindow.displayJustShape();
+        //tripIdsOnMap.forEach(tripId => iframe.contentWindow.removeTripFromMap(tripId));
+        console.log("clicked button v1, re-init map (this will undisplay all routes/shapes/markers on it)");
+        iframe.contentWindow.initMap();
+    });
+    $('#vv4').on('click',function(ev) {
+        console.log("clicked button vv4, toggle shape");
+
+        iframe.contentWindow.toggleShape(currentTripId);
+    });
+    $('#vv2').on('click',function(ev) {
+        console.log("clicked button vv2, toggle stops");
+        iframe.contentWindow.toggleStops(currentTripId);
+    });
+    $('#vv3').on('click',function(ev) {
+        console.log("clicked button vv3, toggle bus markers");
+        iframe.contentWindow.toggleSiri(currentTripId);
+        //iframe.contentWindow.undisplayTrip(currentTripId, false, true);
     });
     $('#v2').on('click',function(ev) {
-        console.log("clicked button v2, go to display stops");
+        console.log("clicked button v2, calculate distance between stops");
         console.log(ev);
         let x = allTripsFromJs;
         let index = 0;
@@ -159,6 +228,7 @@ $(document).ready(function(){
     });
 
     var previousTripId;
+    var currentTripId;
 
     // what happens when user clicks on one of the rows in the rips display on the right pane:
     $('#myTable').on('click', '.clickable-row', function(event) {
@@ -172,7 +242,8 @@ $(document).ready(function(){
         }
         clog("setView=" + setView);
 
-        iframe.contentWindow.displayJustShape();
+        // not needed, as we call displayAll which calls displayRouteOnMap
+        //iframe.contentWindow.displayJustShape();
 
         //iframe.contentWindow.displayStopsOnMap(stops);  // 2nd arg optional, if not passed should use default
         /* expects stops.features
@@ -198,10 +269,14 @@ $(document).ready(function(){
         //////////////////////////////
         //  original code - uses findGtfsTripObject() which uses a data structure already built before
         /////////////////////
+        if (previousTripId) {   // first remove previous, then add current
+            iframe.contentWindow.removeTripFromMap(previousTripId);
+            clog("done removing trip " + previousTripId);
+        }
         iframe.contentWindow.askDisplayAll(findGtfsTripObject(tripId), setView);
-        iframe.contentWindow.removeTripFromMap(previousTripId);
-        clog("done removing trip " + previousTripId);
+        tripIdsOnMap.push(tripId);
         previousTripId = tripId;
+        currentTripId = tripId;
     });
 
     //allTripsFromJs = allTrips; // allTrips arrives from including allTrips.js. In production will arrive from Python analysis of Siri Data

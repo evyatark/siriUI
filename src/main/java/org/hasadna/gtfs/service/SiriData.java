@@ -7,6 +7,7 @@ import io.vavr.Tuple2;
 import io.vavr.collection.*;
 import org.hasadna.gtfs.Spark;
 import org.hasadna.gtfs.db.JsonClient;
+import org.hasadna.gtfs.db.MemoryDB;
 import org.hasadna.gtfs.entity.StopsTimeData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,6 +28,7 @@ import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 import static org.hasadna.gtfs.service.Stops.decideGtfsFileName;
+import static org.hasadna.gtfs.service.Utils.generateKey;
 
 @Component
 public class SiriData {
@@ -62,8 +65,8 @@ public class SiriData {
     @Autowired
     SchedulesData schedulesData;
 
-//    @Autowired
-//    MemoryDB db;
+    @Autowired
+    MemoryDB db;
 
     /**
      * create a Stream of lines from several gz siri results files
@@ -213,8 +216,11 @@ public class SiriData {
     public String dayResults(final String routeId, final String date, final boolean withReadingSiriLogs) {
 
         List<TripData> tripsData = List.empty();
-
+        String json;
         if (withReadingSiriLogs) {
+            final String key = generateKey("siri", routeId, date);
+            String fromDB = db.readKey(key);
+            if ((fromDB != null) && !"[]".equals(fromDB)) return fromDB;
             logger.debug("first read Siri logs, then read also GTFS (for data about stops)");
 
             // this reads all siri logs (of that day) to find text lines of that route
@@ -223,15 +229,26 @@ public class SiriData {
             // value: Stream/List of all lines from the siri_rt-data file(s), that belong to this trip
             Map<String, io.vavr.collection.Stream<String>> trips = findAllTrips(routeId, date);
 
-            tripsData = buildFullTripsData(trips, date, routeId);
+            tripsData = buildFullTripsData2(trips, date, routeId);
+            json = convertToJson(tripsData);
+            if (tripsData != null) db.writeKeyValue(key, json);
         }
         else {
             // without siri logs
-            logger.debug("skip Siri logs, read only GTFS");
-            tripsData = buildFullTripsDataWithoutSiri(date, routeId);
+            final String key = generateKey("gtfs", routeId, date);
+            String fromDB = db.readKey(key);
+            if ((fromDB != null) && !"[]".equals(fromDB)) {
+                json = fromDB;
+            }
+            else {
+                logger.debug("skip Siri logs, read only GTFS");
+                tripsData = buildFullTripsDataWithoutSiri(date, routeId);
+                json = convertToJson(tripsData);
+                if (tripsData != null) db.writeKeyValue(key, json);
+            }
         }
 
-        final String json = convertToJson(tripsData);
+        //final String json = convertToJson(tripsData);
         logger.debug("day results completed: routeId={}, date={}", routeId, date);
         return json;
     }
@@ -473,6 +490,59 @@ public class SiriData {
         return tripsData;
     }
 
+    // combine 2 independant invocations (siri, gtfs)
+    public List<TripData> buildFullTripsData2(Map<String,io.vavr.collection.Stream<String>> trips, String date, String routeId) {
+
+        // from GTFS:
+
+        // Result might already be in DB, so first we check there
+        // and convert from json back to List<TripData>
+        List<TripData> tripsAccordingToGtfsTripIdToDate = List.empty();
+        String fromDB = db.readKey(generateKey("gtfs", routeId, date));
+        if ((fromDB != null) && !"[]".equals(fromDB)) {
+            tripsAccordingToGtfsTripIdToDate = convertFromJson(fromDB);
+        }
+        else {
+            // result not in DB, so calculate it
+            tripsAccordingToGtfsTripIdToDate = buildFullTripsDataWithoutSiri(date, routeId);
+            // and insert to DB
+            db.writeKeyValue(generateKey("gtfs", routeId, date), convertToJson(tripsAccordingToGtfsTripIdToDate));
+        }
+
+        // from Siri:
+        List<TripData> tripsAccordingToSiri = buildSiriData(trips, date, routeId);
+
+        logger.warn("before combine");
+        for (int index = 0 ; index < tripsAccordingToGtfsTripIdToDate.size(); index++) {
+            TripData tripData = tripsAccordingToGtfsTripIdToDate.get(index);
+            logger.warn("tripData siriTripId={},  alternateTripId={}, gtfsTripId={}, oad={}, stops={}", tripData.siriTripId, tripData.alternateTripId, tripData.gtfsTripId, tripData.originalAimedDeparture, tripData.stops );
+            if ((tripData.stops != null) && tripData.stops.features != null) {
+                logger.warn("{} stops exist", tripData.stops.features.length);
+            }
+        }
+
+        // combine
+        List<TripData> tripsData = completeWithGtfsData(tripsAccordingToSiri, tripsAccordingToGtfsTripIdToDate);
+        logger.warn("after combine");
+
+        if ((tripsData == null) || tripsData.isEmpty()) {
+            logger.warn("WARNING: empty or null trips data!");
+            return List.empty();
+        }
+        else {
+            for (int index = 0 ; index < tripsData.size(); index++) {
+                TripData tripData = tripsData.get(index);
+                logger.warn("tripData siriTripId={},  alternateTripId={}, gtfsTripId={}, oad={}, stops={}", tripData.siriTripId, tripData.alternateTripId, tripData.gtfsTripId, tripData.originalAimedDeparture, tripData.stops );
+                if ((tripData.stops != null) && tripData.stops.features != null) {
+                    logger.warn("{} stops exist", tripData.stops.features.length);
+                }
+            }
+        }
+        displaySuspiciousTrips(tripsData);
+
+        return tripsData;
+    }
+
     /**
      * build a representation of Siri results from the data in the method arguments
      * @param trips - map of all trips of {routeId} at day {date}
@@ -484,10 +554,10 @@ public class SiriData {
      * @return  a list of TripData objects
      * @throws JsonProcessingException
      */
-    public List<TripData> buildFullTripsData(Map<String,io.vavr.collection.Stream<String>> trips, String date, String routeId) {
+    public List<TripData> buildFullTripsData_not_needed_use_2(Map<String,io.vavr.collection.Stream<String>> trips, String date, String routeId) {
 
         // only from Siri:
-        List<TripData> tripsData = buildTripData_orig(trips, date, routeId);
+        List<TripData> tripsData = buildTripData_orig_(trips, date, routeId);
         if ((tripsData == null) || tripsData.isEmpty()) {
             logger.warn("WARNING: empty or null trips data!");
             return List.empty();
@@ -612,7 +682,117 @@ public class SiriData {
             return "[]";
         }
     }
+    public List<TripData> convertFromJson(String json) {
+        if (StringUtils.isEmpty(json) || "[]".equals(json)) {
+            return List.empty();
+        }
+        java.util.List<java.util.HashMap<String, Object>> javaList = new ArrayList<>();
+        ObjectMapper x = new ObjectMapper();
+        try {
+            javaList = x.readValue(json, javaList.getClass());
+            // TODO - this converts json to maps, not to Objects
+            return List.ofAll(javaList).map(hashMap -> convertToTripData(hashMap));
+        } catch (JsonProcessingException e) {
+            logger.error("exception when converting json to a list of TripData");
+            return List.empty();
+        }
 
+        //return List.empty();//ofAll(javaList);
+    }
+
+    private TripData convertToTripData(java.util.HashMap<String, Object> hashMap) {
+        TripData td = new TripData();
+        td.alternateTripId = hashMap.get("alternateTripId").toString();
+        td.originalAimedDeparture = hashMap.get("originalAimedDeparture").toString();
+        td.dayOfWeek = hashMap.get("dayOfWeek").toString();
+        td.siriTripId = hashMap.get("siriTripId").toString();
+        td.routeId = hashMap.get("routeId").toString();
+        td.date = hashMap.get("date").toString();
+        td.dns = ((hashMap.get("dns") == null)?false:Boolean.parseBoolean(hashMap.get("dns").toString()));
+        td.suspicious = ((hashMap.get("suspicious") == null)?false:Boolean.parseBoolean(hashMap.get("suspicious").toString()));
+        td.agencyCode = (null==hashMap.getOrDefault("agencyCode", ""))?"":hashMap.getOrDefault("agencyCode", "").toString();
+        td.agencyName = (null==hashMap.getOrDefault("agencyName", ""))?"":hashMap.getOrDefault("agencyName", "").toString();
+        td.shortName = (null==hashMap.getOrDefault("shortName", ""))?"":hashMap.getOrDefault("shortName", "").toString();
+        td.vehicleId = (null==hashMap.getOrDefault("vehicleId", ""))?"":hashMap.getOrDefault("vehicleId", "").toString();
+        td.gtfsTripId = (null==hashMap.getOrDefault("gtfsTripId", ""))?"":hashMap.getOrDefault("gtfsTripId", "").toString();
+        td.gtfsETA = (null==hashMap.getOrDefault("gtfsETA", ""))?"":hashMap.getOrDefault("gtfsETA", "").toString();
+
+        td.siri = convertToSiri (hashMap.get("siri"));
+        //td.stopsTimeData;
+        td.stops = convertToStops(hashMap.get("stops"));
+
+        return td;
+    }
+
+    private StopFeatureCollection convertToStops(Object stops) {
+        if (stops == null) return null;
+        java.util.HashMap<String, Object> siriMap = new java.util.HashMap<>();
+        StopFeature[] features = convertStopFeatureList((java.util.Map<String, Object>) stops);
+        StopFeatureCollection stopFeatureCollection = new StopFeatureCollection(features);
+        return stopFeatureCollection;
+    }
+
+    private StopFeature[] convertStopFeatureList(java.util.Map<String, Object> stops) {
+        java.util.List<Object> list = (java.util.List<Object>) stops.get("features");
+        java.util.List<StopFeature> sfs = new ArrayList<>();
+        for (Object obj : list) {
+            java.util.Map<String, Object> map = (java.util.Map<String, Object>) obj;
+            //Object geometryMap = map.get("geometry")
+            //Object propertiesMap =  map.get("properties")
+            sfs.add(convertToFeature(map));
+        }
+        return sfs.toArray(new StopFeature[]{});
+    }
+
+    private StopFeature convertToFeature(java.util.Map<String, Object> map) {
+        StopFeature sf = new StopFeature();
+        sf.type = (String) map.get("type");
+        sf.geometry = convertToGeometry (map.get("geometry"));
+        sf.properties = convertToProperties(map.get("properties"));
+        return sf;
+    }
+
+    private StopProperties convertToProperties(Object properties) {
+        java.util.Map<String, String> map = (java.util.Map<String, String>) properties;
+        StopProperties sp = new StopProperties();
+        sp.stop_sequence = map.get("stop_sequence");
+        sp.departureTime = map.get("departureTime");
+        sp.arrivalTime = map.get("arrivalTime");
+        sp.zone_id = map.get("zone_id");
+        sp.location_type = map.get("location_type");
+        sp.distance = map.get("distance");
+        sp.stop_desc = map.get("stop_desc");
+        sp.stop_name = map.get("stop_name");
+        sp.stop_code = map.get("stop_code");
+        sp.stop_id = map.get("stop_id");
+        sp.trip_id = map.get("trip_id");
+        sp.parent_station = map.get("parent_station");
+        return sp;
+    }
+
+    private PointGeometry convertToGeometry(Object geometry) {
+        PointGeometry pg = new PointGeometry();
+        pg.type = ((java.util.Map<String, String>)geometry).get("type");
+        pg.coordinates = convertToCoordinates(((java.util.Map<String, Object>)geometry).get("coordinates"));
+        return pg;
+    }
+
+    private String[] convertToCoordinates(Object coordinates) {
+        java.util.List<String> coords = (java.util.List<String>) coordinates;
+        return new String[] {coords.get(0), coords.get(1)};
+    }
+
+    private SiriFeatureCollection convertToSiri(Object siri) {
+        if (siri == null) return null;
+        java.util.HashMap<String, Object> siriMap = new java.util.HashMap<>();
+        SiriFeature[] features = convertFeatureList((java.util.List<Object>)siri);
+        SiriFeatureCollection siriFeatureCollection = new SiriFeatureCollection(features);
+        return siriFeatureCollection;
+    }
+
+    private SiriFeature[] convertFeatureList(java.util.List<Object> siri) {
+        return new SiriFeature[]{};
+    }
 
 
     public TripData enrichSingleTrip(TripData tripData, Map<String, Map<Integer, StopsTimeData>> allStopsOfAllTrips) {
@@ -766,6 +946,34 @@ public class SiriData {
         return sorted;
     }
 
+    public List<TripData> buildSiriData(Map<String, io.vavr.collection.Stream<String>> trips, String date, String routeId) {
+        DayOfWeek dayOfWeek = LocalDate.parse(date).getDayOfWeek();
+
+        List<TripData> tripsAccordingToSiri =
+                trips.keySet().map(tripId ->
+                {
+                    io.vavr.collection.Stream<String> thisTrip = trips.get(tripId).get();
+                    String firstLine = thisTrip.head();
+                    TripData td = new TripData();
+                    td.routeId = routeId;
+                    td.date = date;
+                    td.dayOfWeek =  Integer.toString( dayOfWeek.getValue() ) ;
+                    //dayOfWeek.toString();
+                    td.siriTripId = tripId;
+                    //td.siri1 = thisTrip.map(line -> createSiriReading(line)).toJavaList();
+                    td.siri = new SiriFeatureCollection(thisTrip.map(line -> createSiriPart(line)).asJava().toArray(new SiriFeature[]{}));
+                    td.vehicleId = extractVehicleId(firstLine);
+                    td.agencyCode = extractAgency(firstLine);
+                    td.agencyName = agencyNameFromCode(td.agencyCode);
+                    td.shortName = extractShortName(firstLine);
+                    td.originalAimedDeparture = extractAimedDeparture(firstLine);
+                    td.suspicious = false;
+                    if (td.siri.features.length < 20) {td.suspicious = true;};
+                    return td;
+                }).toList();
+        return tripsAccordingToSiri;
+    }
+
     /**
      * build POJO representation of trips from the data in the method arguments
      * TODO cache the result of calling this method
@@ -783,67 +991,20 @@ public class SiriData {
      */
     // sample of a line:
     // 2019-04-04T17:25:12.187,[line 358 v 8335053 oad 15:20 ea 18:17],15,8136,358,37350079,15:20,8335053,18:17,17:24:47,31.802471160888672,34.83134460449219
-    public List<TripData> buildTripData_orig(Map<String, io.vavr.collection.Stream<String>> trips, String date, String routeId) {
-        // TODO cache by key=date+routeId
-        DayOfWeek dayOfWeek = LocalDate.parse(date).getDayOfWeek();
+    public List<TripData> buildTripData_orig_(Map<String, io.vavr.collection.Stream<String>> trips, String date, String routeId) {
+        // following 2 lines not dependent, can be done in parallel
+        List<TripData> tripsAccordingToGtfsTripIdToDate = buildFullTripsDataWithoutSiri(date, routeId);
+        List<TripData> tripsAccordingToSiri = buildSiriData(trips, date, routeId);
 
-        List<TripData> tripsAccordingToSiri =
-            trips.keySet().map(tripId ->
-                                {
-                                    io.vavr.collection.Stream<String> thisTrip = trips.get(tripId).get();
-                                    String firstLine = thisTrip.head();
-                                    TripData td = new TripData();
-                                    td.routeId = routeId;
-                                    td.date = date;
-                                    td.dayOfWeek =  Integer.toString( dayOfWeek.getValue() ) ;
-                                            //dayOfWeek.toString();
-                                    td.siriTripId = tripId;
-                                    //td.siri1 = thisTrip.map(line -> createSiriReading(line)).toJavaList();
-                                    td.siri = new SiriFeatureCollection(thisTrip.map(line -> createSiriPart(line)).asJava().toArray(new SiriFeature[]{}));
-                                    td.vehicleId = extractVehicleId(firstLine);
-                                    td.agencyCode = extractAgency(firstLine);
-                                    td.agencyName = agencyNameFromCode(td.agencyCode);
-                                    td.shortName = extractShortName(firstLine);
-                                    td.originalAimedDeparture = extractAimedDeparture(firstLine);
-                                    td.suspicious = false;
-                                    if (td.siri.features.length < 20) {td.suspicious = true;};
-                                    return td;
-                                }).toList();
+        //List<TripData> tripsAccordingToGtfsTripIdToDate = buildTripData(date, routeId);
 
-/***
-        // should be like this:
-        java.util.List<TripData> tripsAccordingToSiri1 =
-                trips
-                   .keySet()
-                   .map(tripId -> buildTripData2(tripId, trips.get(tripId).getOrElse(io.vavr.collection.Stream.empty()), date, routeId, dayOfWeek))
-                   .toJavaList();
+        // not needed?
+        //Map<String, String> gtfsTrips = findSiriTrips(List.ofAll(tripsAccordingToGtfsTripIdToDate));
+        //display(gtfsTrips);
 
-        Map<String, String> siriTrips = findSiriTrips(List.ofAll(tripsAccordingToSiri1));
-        display(siriTrips);
- ***/
 
-        List<TripData> tripsAccordingToGtfsTripIdToDate = buildTripsFromTripIdToDate(routeId, date);
-        Map<String, String> gtfsTrips = findSiriTrips(List.ofAll(tripsAccordingToGtfsTripIdToDate));
-        display(gtfsTrips);
-
-/*
-        // this is a list of TripData according to TripIdToDate which is part of the GTFS (sort of)
-        // In general the lists (tripsAccordingToSiri and tripsAccordingToGtfsTripIdToDate) should be compatible,
-        // except:
-        // 1. tripsAccordingToGtfsTripIdToDate may contain trips that are not found in siri (most probably because
-        // no bus executed that trip) - we will tag these trips as "missing" (or DNS = Did Not Start)_
-        // 2. trip IDs should be the same for all days of week
-        // (as opposed to trip IDs from GTFS file trips.txt, which are identical only on Sundays...)
-        java.util.List<TripData> missingInSiri = findMissing(tripsAccordingToSiri, tripsAccordingToGtfsTripIdToDate);
-
-        tripsAccordingToSiri.addAll(missingInSiri);
-        // TODO sort tripsAccordingToSiri again (by originalAimedDeparture)
-*/
-        //java.util.List<TripData> sortedTripsAccordingToSiri = sort(tripsAccordingToSiri);
         List<TripData> sortedTripsAccordingToSiri = completeWithGtfsData(tripsAccordingToSiri, tripsAccordingToGtfsTripIdToDate);
-        // at that point sortedTripsAccordingToSiri contains also tripData objects of trips that appears in GTFS but not in siri data
 
-        //return tripsAccordingToSiri;
         return sortedTripsAccordingToSiri;
     }
 
@@ -855,6 +1016,10 @@ public class SiriData {
      * @return
      */
     private List<TripData> completeWithGtfsData(List<TripData> tripsAccordingToSiri, List<TripData> tripsAccordingToGtfsTripIdToDate) {
+        if ((tripsAccordingToSiri == null) || (tripsAccordingToSiri.isEmpty())) {
+            return tripsAccordingToGtfsTripIdToDate;
+        }
+        String date = tripsAccordingToSiri.head().originalAimedDeparture.split("T")[0];
         java.util.List<String> gtfsHours = tripsAccordingToGtfsTripIdToDate.map(tripData -> tripData.getOriginalAimedDeparture()).collect(Collectors.toList());
         java.util.List<String> siriHours1 = tripsAccordingToSiri.map(tripData -> tripData.getOriginalAimedDeparture()).collect(Collectors.toList());
         // in siri v2, hour will be of the format 2019-07-28T06:45:00, so in order to compare with gtfs hour 06:45 we will strip date part from siri hour
@@ -873,20 +1038,74 @@ public class SiriData {
                 .asJava();
         List<String> gtfsHoursNotInSiri = List.ofAll(gtfsHours).removeAll(hour -> fixedSiriHours.contains(hour));
 
-        List<TripData> siri = List.ofAll(tripsAccordingToSiri);
+        List<TripData> siri = List.empty();  //.ofAll(tripsAccordingToSiri);
         for (String hour : gtfsHoursNotInSiri) {
-            TripData tr =
-                List.ofAll(tripsAccordingToGtfsTripIdToDate)
-                    .find(tripData -> hour.equals(tripData.getOriginalAimedDeparture()))
-                    .map(tripData -> {
-                        tripData.dns = true;
-                        //tripData.suspicious = true; // TODO actually we would prefer having here an indication that trip DNS)
-                        return tripData;
-                    }).get();
+            TripData gtfsTripWithThatOad = findGtfsTripWithOriginAimeDeparture(tripsAccordingToGtfsTripIdToDate,hour);
+            TripData tr = gtfsTripWithThatOad;
+            tr.setOriginalAimedDeparture(fixHour(tr.getOriginalAimedDeparture(), date));
+            logger.warn("found gtfs trip with OAD {} that did not exist in Siri trips: {}/{}/{}", hour, tr.siriTripId, tr.gtfsTripId, tr.alternateTripId);
+            tr.dns = true;
             siri = siri.append(tr);
         }
+        // merge gtfs data of all GTFS trips that DO exist in Siri (otherwise, we don't get data about stops!!!)
+        for (TripData td : tripsAccordingToSiri) {
+            TripData merged = mergeGtfsTripData(td, tripsAccordingToGtfsTripIdToDate);
+            siri = siri.append(merged);
+        }
         // sort again (by oad) and return
-        return siri.sortBy(tripData -> tripData.getOriginalAimedDeparture());
+        siri = siri.sortBy(tripData -> tripData.getOriginalAimedDeparture());
+        return siri;
+    }
+
+    private String fixHour(String originalAimedDeparture, String date) {
+        if (!originalAimedDeparture.contains("T")) {
+            return date + "T" + originalAimedDeparture;
+        }
+        else {
+            return originalAimedDeparture;
+        }
+    }
+
+    private TripData mergeGtfsTripData(TripData td, List<TripData> tripsAccordingToGtfsTripIdToDate) {
+        TripData gtfsTrip = findGtfsTripWithOriginAimeDeparture(tripsAccordingToGtfsTripIdToDate, td.originalAimedDeparture);
+        if (null != gtfsTrip) {
+            if (gtfsTrip.stops != null) {
+                td.stops = gtfsTrip.stops;
+            }
+            if (!td.siriTripId.equals(gtfsTrip.siriTripId)) {
+                td.gtfsTripId = gtfsTrip.siriTripId;
+            }
+            if (StringUtils.isEmpty(td.gtfsETA))                    td.gtfsETA = gtfsTrip.gtfsETA;
+            if (StringUtils.isEmpty(td.agencyCode))                 td.agencyCode = gtfsTrip.agencyCode;
+            if (StringUtils.isEmpty(td.agencyName))                 td.agencyName = gtfsTrip.agencyName;
+            if (StringUtils.isEmpty(td.alternateTripId))            td.alternateTripId = gtfsTrip.alternateTripId;
+            if (StringUtils.isEmpty(td.date))                       td.date = gtfsTrip.date;
+            if (StringUtils.isEmpty(td.dayOfWeek))                  td.dayOfWeek = gtfsTrip.dayOfWeek;
+            if (StringUtils.isEmpty(td.originalAimedDeparture))     td.originalAimedDeparture = gtfsTrip.originalAimedDeparture;
+            if (StringUtils.isEmpty(td.routeId))                    td.routeId = gtfsTrip.routeId;
+            if (StringUtils.isEmpty(td.shortName))                  td.shortName = gtfsTrip.shortName;
+        }
+        return td ;
+    }
+
+    TripData findGtfsTripWithOriginAimeDeparture(List<TripData> trips, String hour) {
+        if ((trips == null) || StringUtils.isEmpty(hour)) return null;
+        final String fixedHour = fix(hour);
+        TripData tripWithThatOad = List.ofAll(trips)
+                .find(tripData -> fixedHour.equals(tripData.getOriginalAimedDeparture())).getOrElse(() -> null);
+        return tripWithThatOad;
+    }
+
+    private String fix(final String hour) {
+        String result = hour;
+        if (hour.contains("T")) {
+            result = hour.split("T")[1];
+        }
+        if (2 == StringUtils.countOccurrencesOf(result, ":")) {
+            int index = result.lastIndexOf(":");
+            result = result.substring(0, index);
+        }
+        return result;
     }
 
     private void display(Map<String, String> siriTrips) {

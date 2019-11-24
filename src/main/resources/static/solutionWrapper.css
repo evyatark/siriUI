@@ -49,3 +49,7 @@ blockquote{
 .red{
     color: red;
 }
+
+.suspicious {
+    background: orangered;
+}

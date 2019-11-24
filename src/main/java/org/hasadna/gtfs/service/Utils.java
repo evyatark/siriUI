@@ -13,6 +13,10 @@ public class Utils {
 
     private static Logger logger = LoggerFactory.getLogger(Utils.class);
 
+    public static String generateKey(String dataKind, String routeId, String date) {
+        return dataKind + "$" + routeId + "@" + date;
+    }
+
     public static String ensureFileExist(String gtfsZipFileFullPath) {
         String fileThatActuallyExists = gtfsZipFileFullPath;
         File f = new File(gtfsZipFileFullPath);

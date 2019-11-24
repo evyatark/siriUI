@@ -55,10 +55,10 @@ public class LongOperationsControllerTest {
         logger.debug(routes);
         Assertions.assertThat(routes).contains("15438");
         List datesWithProblems = List.ofAll(
-            Stream.rangeClosed(20, 31)
+            Stream.rangeClosed(3, 20)
                 .map(i -> Integer.toString(i))
                 .map(s -> (s.length() == 1)? ("0" + s) : s)
-                .map(s -> "2019-10-" + s)
+                .map(s -> "2019-11-" + s)
                 .map(date -> {
                     String url = "http://localhost:8080/siriForDateAndRoutes/" + date + "?routeIds=" + routes;
                     String result = restTemplate.getForObject(url, String.class);

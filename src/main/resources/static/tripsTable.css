@@ -5,3 +5,7 @@
 .right-col {
     text-align: center;
 }
+
+.suspicious {
+    background: orangered;
+}
