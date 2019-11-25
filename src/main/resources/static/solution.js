@@ -33,6 +33,17 @@ function toggleStops(tripId) {
     clog("toggle Stops done");
 }
 
+function toggleVisibilityOfTooltip(displaySiriTooltipAlways) {
+    if (displaySiriTooltipAlways) {
+        clog("toggleVisibilityOfTooltip (solution.js) visible");
+        $('.icon-text').attr('style', 'visibility: visible;');
+    }
+    else {
+        clog("toggleVisibilityOfTooltip (solution.js) hidden");
+        $('.icon-text').attr('style', 'visibility: hidden;');
+    }
+}
+
 function toggleSiri(tripId) {
     if (!tripId) return;
     clog("toggle Siri");
@@ -143,7 +154,10 @@ function tooltipOptions() {
 }
 
 function getMarkerWithTextIcon(theText, coordinates) {
-    let icon = new L.TextIcon({ text: theText, color: 'red' });
+    // <div class="icon-text"
+    // add attribute style="visibility: visible;" to div that has class = "icon-text"
+    // to hide - change visible to hidden
+    let icon = new L.TextIcon({ text: theText, color: 'red'});
     let marker = L.marker(coordinates, { icon: icon });
     return marker;
 }
@@ -180,7 +194,7 @@ function displaySiriPointsOnMap(siriPoints, iconFileName, date) {
     const siriMarkers = siriPoints.map(siriPoint => {
             let text = onlyHour( siriPoint.properties.time_recorded );
             const coordinates = siriPoint.geometry.coordinates;
-            const markerSpecial = getMarkerWithTextIcon("<br/>" +text, coordinates);
+            const markerSpecial = getMarkerWithTextIcon(text, coordinates);
             //const title = createSiriTitleText(siriPoint);
 
             // const marker = L.marker(coordinates, {
@@ -189,14 +203,21 @@ function displaySiriPointsOnMap(siriPoints, iconFileName, date) {
             //     riseOnHover: true
             // })
 
-            const marker = markerSpecial
+            let marker = markerSpecial
                 .on('click', siriMarkerOnClick)
-                    .addTo(mymap)
+                    .addTo(mymap);
                 // title and tooltip are different (title is a browser thing, tooltip is leaflet thing(?)
                 // but if both defined, they will be displayed one above the other
-                .bindTooltip(createSiriTooltipText(siriPoint, date), tooltipOptions())
+
+                // disable this tooltip in favor of icon-text with visibility toggling
+                if (false == parent.displayOptionsInWrapper.displaySiriTooltipAlways) {
+                    clog("binding tooltip");
+                    clog(parent.displayOptionsInWrapper);
+                    marker = marker.bindTooltip(createSiriTooltipText(siriPoint, date), tooltipOptions());
+                }
+
                 //.bindPopup(createSiriPopupText(siriPoint), popupOptions)
-                ;
+
             // + siriPoint.timestamp + siriPoint.recalculatedETA
         // + calculate distance from point to nearest stop, or
         // calculate the distance on the shape from point to nearest stop, or
@@ -217,6 +238,9 @@ function displaySiriPointsOnMap(siriPoints, iconFileName, date) {
             marker.openPopup();
             return marker;
         });
+        // add constant tooltips for all siri points (if displaySiriTooltipAlways == true)
+        toggleVisibilityOfTooltip(parent.displayOptionsInWrapper.displaySiriTooltipAlways);
+
     return siriMarkers;
 }
 
@@ -397,6 +421,7 @@ function askDisplayAll(gtfsTripObject, setView) {
     // }
     mapAllRoutesDisplayed.set(tripId, route1);
     clog("added. map now contains " + mapAllRoutesDisplayed.size);
+    toggleVisibilityOfTooltip(parent.displayOptionsInWrapper.displaySiriTooltipAlways);
     if (setView && gtfsTripObject.siri && gtfsTripObject.siri.features) {
         mymap.setView(gtfsTripObject.siri.features[0].geometry.coordinates, 12);
     }

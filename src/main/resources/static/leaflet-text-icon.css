@@ -1,12 +1,18 @@
 .leaflet-div-icon {
     background: transparent;
     border: none;
+    top: 20px;
+    width: 50px;
 }
 
 .leaflet-marker-icon .icon-text {
     position: relative;
-    top: -42px;
+    visibility: hidden;
+    background: greenyellow;
+    border: 1px dotted black;
+    top: -50px;
     font-size: 12px;
-    width: 25px;
+    width: 50px;
     text-align: center;
 }
+

@@ -151,6 +151,7 @@ $(document).ready(function() {
     });
     $('#chk_siri_tooltip').change(function(ev) {
         displayOptionsInWrapper.displaySiriTooltipAlways=ev.target.checked;
+        iframe.contentWindow.toggleVisibilityOfTooltip(displayOptionsInWrapper.displaySiriTooltipAlways);
     });
 
     $('#v1').on('click',function(ev) {
