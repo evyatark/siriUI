@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.collection.*;
+import io.vavr.control.Option;
 import org.hasadna.gtfs.Spark;
 import org.hasadna.gtfs.db.JsonClient;
 import org.hasadna.gtfs.db.MemoryDB;
@@ -784,14 +785,45 @@ public class SiriData {
 
     private SiriFeatureCollection convertToSiri(Object siri) {
         if (siri == null) return null;
-        java.util.HashMap<String, Object> siriMap = new java.util.HashMap<>();
-        SiriFeature[] features = convertFeatureList((java.util.List<Object>)siri);
+        java.util.LinkedHashMap<String, Object> siriMap = (java.util.LinkedHashMap) siri;
+        SiriFeature[] features = convertFeatureList(siriMap);
         SiriFeatureCollection siriFeatureCollection = new SiriFeatureCollection(features);
         return siriFeatureCollection;
     }
 
-    private SiriFeature[] convertFeatureList(java.util.List<Object> siri) {
-        return new SiriFeature[]{};
+    private SiriFeature[] convertFeatureList(java.util.LinkedHashMap<String, Object> siri) {
+        //LinkedHashMap map1 = (LinkedHashMap) siri;
+        java.util.List<Object> listOfObjects = (java.util.List<Object>) siri.get("features");
+        // convert each object to a SiriFeature
+        List<SiriFeature> sfs = List.empty();
+        for (Object obj : listOfObjects) {
+            java.util.LinkedHashMap<String, Object> map2 = (java.util.LinkedHashMap<String, Object>) obj ;
+            SiriFeature sf = new SiriFeature();
+            sf.geometry = convertGeometry(map2.get("geometry"));
+            sf.properties = convertProperties(map2.get("properties"));
+            sfs = sfs.append(sf);
+        }
+        SiriFeature[] result = sfs.toJavaList().toArray(new SiriFeature[]{});
+        return result;
+
+    }
+
+    private SiriProperties convertProperties(Object properties) {
+        java.util.LinkedHashMap<String, String> map = (java.util.LinkedHashMap<String, String>) properties;
+        SiriProperties sp = new SiriProperties();
+        sp.time_recorded = map.get("time_recorded");
+        sp.recalculatedETA = map.get("recalculatedETA");
+        sp.timestamp = map.get("timestamp");
+        return sp;
+    }
+
+    private PointGeometry convertGeometry(Object geometry) {
+        java.util.LinkedHashMap<String, Object> map = (java.util.LinkedHashMap<String, Object>) geometry;
+        Object obj = map.get("coordinates");
+        java.util.List<String> coords = (ArrayList<String>) obj ;
+        PointGeometry pg = new PointGeometry();
+        pg.coordinates = coords.toArray(new String[]{});
+        return pg;
     }
 
 

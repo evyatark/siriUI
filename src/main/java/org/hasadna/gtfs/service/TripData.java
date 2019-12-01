@@ -183,19 +183,20 @@ public class TripData {
     public String toString() {
         return "TripData{" +
                 "routeId='" + routeId + '\'' +
+                ", date='" + date + '\'' +
+                ", originalAimedDeparture='" + originalAimedDeparture + '\'' +
+                ", gtfsTripId='" + gtfsTripId + '\'' +
+                ", siriTripId='" + siriTripId + '\'' +
                 ", shortName='" + shortName + '\'' +
                 ", agencyCode='" + agencyCode + '\'' +
                 ", agencyName='" + agencyName + '\'' +
                 ", dayOfWeek='" + dayOfWeek + '\'' +
-                ", date='" + date + '\'' +
-                ", originalAimedDeparture='" + originalAimedDeparture + '\'' +
                 ", gtfsETA='" + gtfsETA + '\'' +
-                ", gtfsTripId='" + gtfsTripId + '\'' +
                 ", stopsTimeData=" + stopsTimeData +
-                ", siriTripId='" + siriTripId + '\'' +
                 ", vehicleId='" + vehicleId + '\'' +
                 ", suspicious='" + suspicious + '\'' +
-                ", siri=[List of " + siri.features.length + " Features]" +
+                ((siri == null)? ", [No Siri Data!]" :
+                ", siri=[List of " + siri.features.length + " Features]") +
                 '}';
     }
 }

@@ -454,7 +454,12 @@ function undisplayShape(tripId) {
     if (!routeObj) return;
     if (routeObj.route) {
         clog("removing polyline...");
-        routeObj.route.removeFrom(mymap);   //: polyline,
+        try {
+            routeObj.route.removeFrom(mymap);   //: polyline,
+        }
+        catch (e) {
+            clog(e);
+        }
         displayStatus.shape = false;
         clog("removed.");
     }
@@ -545,7 +550,12 @@ function removeAll(tripObject) {
         }
         if (tripObject.route) {
             clog("removing polyline...");
-            tripObject.route.removeFrom(mymap);   //: polyline,
+            try {
+                routeObj.route.removeFrom(mymap);   //: polyline,
+            }
+            catch (e) {
+                clog(e);
+            }
             displayStatus.shape = false;
             clog("removed.");
         }

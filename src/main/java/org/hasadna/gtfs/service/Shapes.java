@@ -41,7 +41,56 @@ public class Shapes {
 
     @Cacheable("shapeByRouteAndDate")
     public String findShape(String routeId, String date) {
-        if ("q".equals(routeId)) {
+
+        try {
+
+            ReadZipFile rzf = new ReadZipFile();
+            String gtfsZipFileName = "gtfs" + date + ".zip";
+            String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
+            if (null == gtfsZipFileFullPath) {
+                logger.warn("could not find GTFS file of date {}. Searched this path: {}", date, directoryOfGtfsFile);
+                return "[]";
+            }
+                    //directoryOfGtfsFile + File.separatorChar + gtfsZipFileName;
+
+            //read trips file, find line that contains routeId
+            // you get 2 lines but in both of them it is the same shape, so take the first.
+            // from that line take 4th item (?) - this is the shape id
+            Option<String> tripLine = rzf
+                    .tripLinesFromFile(gtfsZipFileFullPath)
+                    .filter(line -> line.startsWith(routeId + ",")).headOption();
+                    //.findFirst();
+
+            logger.info("routeId={}, tripLine={}", routeId, tripLine.getOrElse("not found"));
+            // route_id,service_id,trip_id,trip_headsign,direction_id,shape_id
+
+            Option<String> shapeIdOpt = tripLine
+                    .map(line -> line.split(","))   // split the line by commas, if tripLine has a value
+                    .map(arr -> arr[5]);                  // takes the 6th item from the array (if tripLine had a value)
+            if (!shapeIdOpt.isDefined()) {
+                logger.warn("could not find shapeId for route {}", routeId);
+                return "[]";
+            }
+            //tripLine.map(line -> line.split(",")).map(arr -> arr[5]).orElse("");
+            String shapeId = shapeIdOpt.get();
+            List<String> shapeLines = shapeById.retrieveShapeId(shapeId, gtfsZipFileFullPath);
+//            List<String> shapeLines =
+//                    rzf.shapeLinesFromFile(gtfsZipFileFullPath)
+//                            .filter(line -> line.startsWith(shapeId))
+//                            .collect(Collectors.toList()); // only the lines that start with shapeId as the first item
+            logger.info("collected {} lines for shape {}", shapeLines.size(), shapeId);
+            String json = generateShapeJson(shapeLines, shapeId);
+            logger.info("json for shape {}: {}", shapeId, json.substring(0, 2000));
+            // [32.054065,35.239214][32.054393,35.239772][32.054735,35.240334]
+            return json;
+        }
+        catch (Exception ex) {
+            logger.error("during findShape, for routeId={}", routeId, ex);
+            return "[]";
+        }
+
+        /*
+                if ("q".equals(routeId)) {
             List<String> shapeLines = Arrays.asList(""
                     ,"106264,31.789159,35.202621,1"
                     ,"106264,31.789143,35.203053,2"
@@ -265,52 +314,7 @@ public class Shapes {
             );
             return generateShapeJson(shapeLines, "106264");
         }
-        try {
-
-            ReadZipFile rzf = new ReadZipFile();
-            String gtfsZipFileName = "gtfs" + date + ".zip";
-            String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
-            if (null == gtfsZipFileFullPath) {
-                logger.warn("could not find GTFS file of date {}. Searched this path: {}", date, directoryOfGtfsFile);
-                return "[]";
-            }
-                    //directoryOfGtfsFile + File.separatorChar + gtfsZipFileName;
-
-            //read trips file, find line that contains routeId
-            // you get 2 lines but in both of them it is the same shape, so take the first.
-            // from that line take 4th item (?) - this is the shape id
-            Option<String> tripLine = rzf
-                    .tripLinesFromFile(gtfsZipFileFullPath)
-                    .filter(line -> line.startsWith(routeId + ",")).headOption();
-                    //.findFirst();
-
-            logger.info("routeId={}, tripLine={}", routeId, tripLine.getOrElse("not found"));
-            // route_id,service_id,trip_id,trip_headsign,direction_id,shape_id
-
-            Option<String> shapeIdOpt = tripLine
-                    .map(line -> line.split(","))   // split the line by commas, if tripLine has a value
-                    .map(arr -> arr[5]);                  // takes the 6th item from the array (if tripLine had a value)
-            if (!shapeIdOpt.isDefined()) {
-                logger.warn("could not find shapeId for route {}", routeId);
-                return "[]";
-            }
-            //tripLine.map(line -> line.split(",")).map(arr -> arr[5]).orElse("");
-            String shapeId = shapeIdOpt.get();
-            List<String> shapeLines = shapeById.retrieveShapeId(shapeId, gtfsZipFileFullPath);
-//            List<String> shapeLines =
-//                    rzf.shapeLinesFromFile(gtfsZipFileFullPath)
-//                            .filter(line -> line.startsWith(shapeId))
-//                            .collect(Collectors.toList()); // only the lines that start with shapeId as the first item
-            logger.info("collected {} lines for shape {}", shapeLines.size(), shapeId);
-            String json = generateShapeJson(shapeLines, shapeId);
-            logger.info("json for shape {}: {}", shapeId, json.substring(0, 2000));
-            // [32.054065,35.239214][32.054393,35.239772][32.054735,35.240334]
-            return json;
-        }
-        catch (Exception ex) {
-            logger.error("during findShape, for routeId={}", routeId, ex);
-            return "[]";
-        }
+         */
     }
 
 //    @Cacheable("shapeByIdAndDate")
