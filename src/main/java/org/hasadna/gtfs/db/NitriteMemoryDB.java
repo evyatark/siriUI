@@ -33,6 +33,7 @@ public class NitriteMemoryDB implements MemoryDB {
     public String nitritePath = "/home/evyatar/temp/nitrite.db";
 
     Nitrite ndb = null;
+    boolean cancellReEvaluation = false;
 
     @PostConstruct
     public void init() {
@@ -117,6 +118,14 @@ public class NitriteMemoryDB implements MemoryDB {
             else {
                 NitriteCollection c = ndb.getCollection("siri");
                 Iterator<Document> it = c.find(eq("key", key)).iterator();
+
+                if (key.equals("siri$15531@2019-11-03") && !cancellReEvaluation) {
+                    logger.info("key {} - value will be recalculated!", key);
+                    cancellReEvaluation = true;
+                    return null;
+                }
+
+
                 if (it.hasNext()) {
                     logger.warn("found key {} in Nitrite siri", key);
                     return it.next().get("value", String.class);

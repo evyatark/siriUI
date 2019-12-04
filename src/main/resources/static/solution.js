@@ -132,7 +132,14 @@ function onlyHour(fullOad, date) {
 function createSiriTooltipText(siriPoint, date) {
     let fullTime = siriPoint.properties.time_recorded;
     let hourOnly = onlyHour(fullTime, date);
-    return hourOnly;
+
+    let distance = siriPoint.properties.distanceFromStart;
+    let distanceStr = " (unknown distance)";
+    if (distance) {
+        distanceStr = " (distance=" + distance + ")";
+    }
+    return hourOnly + distanceStr;
+
     // let html = "time:" + siriPoint.properties.time_recorded;
     // return "TOOLTIP "+html;
 }

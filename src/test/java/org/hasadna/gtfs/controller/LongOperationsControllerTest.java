@@ -55,7 +55,7 @@ public class LongOperationsControllerTest {
         logger.debug(routes);
         Assertions.assertThat(routes).contains("15438");
         List datesWithProblems = List.ofAll(
-            Stream.rangeClosed(3, 20)
+            Stream.rangeClosed(11, 12)
                 .map(i -> Integer.toString(i))
                 .map(s -> (s.length() == 1)? ("0" + s) : s)
                 .map(s -> "2019-11-" + s)

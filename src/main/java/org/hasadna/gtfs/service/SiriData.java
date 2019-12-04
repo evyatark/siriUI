@@ -5,16 +5,25 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.collection.*;
-import io.vavr.control.Option;
+import org.geotools.geometry.jts.JTS;
+import org.geotools.referencing.CRS;
 import org.hasadna.gtfs.Spark;
 import org.hasadna.gtfs.db.JsonClient;
 import org.hasadna.gtfs.db.MemoryDB;
 import org.hasadna.gtfs.entity.StopsTimeData;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
+import org.locationtech.jts.io.geojson.GeoJsonReader;
+import org.locationtech.jts.linearref.LengthIndexedLine;
+import org.opengis.referencing.operation.MathTransform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -60,6 +69,8 @@ public class SiriData {
     @Value("${search.stops.in.gtfs:false}")
     public boolean searchGTFS ;
 
+    public boolean enrichWithDistance = true;  // true - to use geoTools Linear Reference to calculate distance
+
     @Autowired
     Stops stops;
 
@@ -68,6 +79,41 @@ public class SiriData {
 
     @Autowired
     MemoryDB db;
+
+    @Autowired
+    Shapes shapeService;
+
+
+    /******************* This is for calculating distance ********
+     *
+     */
+    static final MathTransform transformer = computeOnce();
+
+    private static MathTransform computeOnce() {
+        try {
+            return CRS.findMathTransform(CRS.decode("EPSG:4326", false), CRS.decode("EPSG:2039", false), true);
+        }
+        catch (Exception ex) {
+            return null;
+        }
+    }
+
+    public static Coordinate convertLatLonToITM(Coordinate coordinate) {   //throws FactoryException, MismatchedDimensionException, TransformException {
+        Point point = (new GeometryFactory()).createPoint( coordinate);
+        try {
+            Geometry g = JTS.transform(point, transformer);
+            return g.getCoordinate();
+        }
+        catch (Exception ex) {
+            return null;
+        }
+    }
+    /*
+     *
+     *********************************************************************/
+
+
+
 
     /**
      * create a Stream of lines from several gz siri results files
@@ -216,23 +262,9 @@ public class SiriData {
     //@Cacheable("siriByRouteAndDay")
     public String dayResults(final String routeId, final String date, final boolean withReadingSiriLogs) {
 
-        List<TripData> tripsData = List.empty();
         String json;
         if (withReadingSiriLogs) {
-            final String key = generateKey("siri", routeId, date);
-            String fromDB = db.readKey(key);
-            if ((fromDB != null) && !"[]".equals(fromDB)) return fromDB;
-            logger.debug("first read Siri logs, then read also GTFS (for data about stops)");
-
-            // this reads all siri logs (of that day) to find text lines of that route
-            // map of all trips of the specified routeId at day {date}
-            // key: tripId
-            // value: Stream/List of all lines from the siri_rt-data file(s), that belong to this trip
-            Map<String, io.vavr.collection.Stream<String>> trips = findAllTrips(routeId, date);
-
-            tripsData = buildFullTripsData2(trips, date, routeId);
-            json = convertToJson(tripsData);
-            if (tripsData != null) db.writeKeyValue(key, json);
+            json = dayResultsWithSiri(routeId, date);
         }
         else {
             // without siri logs
@@ -243,15 +275,119 @@ public class SiriData {
             }
             else {
                 logger.debug("skip Siri logs, read only GTFS");
-                tripsData = buildFullTripsDataWithoutSiri(date, routeId);
+                final List<TripData> tripsData = buildFullTripsDataWithoutSiri(date, routeId);
                 json = convertToJson(tripsData);
                 if (tripsData != null) db.writeKeyValue(key, json);
             }
         }
-
-        //final String json = convertToJson(tripsData);
         logger.debug("day results completed: routeId={}, date={}", routeId, date);
         return json;
+    }
+
+    private String dayResultsWithSiri(final String routeId, final String date) {
+        final String key = generateKey("siri", routeId, date);
+        final String fromDB = db.readKey(key);
+        if ((fromDB != null) && !"[]".equals(fromDB)) return fromDB;
+        logger.debug("first read Siri logs, then read also GTFS (for data about stops)");
+
+        final List<TripData> tripsData = dayResultsWithSiri1(routeId, date);
+
+        final String json = convertToJson(tripsData);
+        if (tripsData != null) db.writeKeyValue(key, json);
+        return json;
+    }
+
+    private List<TripData> dayResultsWithSiri1(final String routeId, final String date) {
+        // this reads all siri logs (of that day) to find text lines of that route
+        // map of all trips of the specified routeId at day {date}
+        // key: tripId
+        // value: Stream/List of all lines from the siri_rt-data file(s), that belong to this trip
+        final Map<String, io.vavr.collection.Stream<String>> trips = findAllTrips(routeId, date);
+        List<TripData> tripsData = buildFullTripsData2(trips, date, routeId);
+
+        if (enrichWithDistance) {
+            logger.info("enriching tripsData {}, {}", routeId, date);
+            tripsData = enrich(tripsData, routeId, date);
+        }
+
+        return tripsData;
+    }
+
+    Coordinate fromFeature(PointGeometry pg) {
+        return  new Coordinate(
+            Double.parseDouble(pg.coordinates[0]),
+                Double.parseDouble(pg.coordinates[1]));
+    }
+
+    private List<TripData> enrich(List<TripData> tripsData, final String routeId, final String date) {
+        try {
+            LengthIndexedLine indexedLine = buildIndexedLine(routeId, date);
+            // start the indexed line from the first stop (not from start of shape linestring!!)
+            double start = indexedLine.getStartIndex();
+            Coordinate startOfLine = indexedLine.extractPoint(start);   // this is beginning of Shape. But sometimes it is NOT the location of first stop!!
+            // since location of stops is the same all day, it is enough to take one trip
+            TripData theChosen = tripsData.head();
+            StopFeature[] allStopsOnRoute = theChosen.stops.features;
+            StopFeature firstDepartureStop = List.of(allStopsOnRoute).find(stop -> "1".equals(stop.properties.stop_sequence)).getOrNull();
+            if (firstDepartureStop != null) {
+                logger.info("adjusting start of route to first stop...");
+                Coordinate locationOfFirstDepartureStopInGeographicLatLon = fromFeature(firstDepartureStop.geometry);
+                Coordinate utmCoord = convertLatLonToITM(locationOfFirstDepartureStopInGeographicLatLon);
+                startOfLine = utmCoord;
+                double indexOfFirstDepartureStop = indexedLine.project(startOfLine);
+                indexedLine = new LengthIndexedLine( indexedLine.extractLine(indexOfFirstDepartureStop, indexedLine.getEndIndex()) );
+                start = indexedLine.getStartIndex();
+                logger.info("... adjusted");
+            }
+            for (TripData tripData : tripsData) {
+                logger.info("enriching trip {} that has {} siri features", tripData.siriTripId, tripData.siri.features.length);
+
+                for (SiriFeature sf : tripData.siri.features) {
+                    Coordinate siriLocation = new Coordinate(Double.parseDouble(sf.geometry.coordinates[0]), Double.parseDouble(sf.geometry.coordinates[1]));
+                    Coordinate utmCoordinate = convertLatLonToITM(siriLocation);
+                    double indexOfSiriPoint = indexedLine.project(utmCoordinate);
+                    long distanceInMeters = new Double(indexedLine.extractLine(start, indexOfSiriPoint).getLength()).longValue();
+                    logger.info("added distance {} to siriFeature {}", distanceInMeters, sf.properties.time_recorded);
+                    sf.properties.distanceFromStart = distanceInMeters;
+                }
+            }
+        }
+        catch (Exception ex) {
+            logger.info("failed to enrich (with distance) Siri Locations in trips. Absorbing exception", ex);
+        }
+        return tripsData;
+    }
+
+    private LengthIndexedLine buildIndexedLine(final String routeId, final String date) {
+        try {
+            String shape = shapeService.findShape(routeId, date);
+            String shapeWkt = convertToUtmAndConstructWktFromShape(shape);
+            //String shapeWkt = "LINESTRING ( 198307.16448649915 627976.016711362, 198320.8974821051 627972.7729288177, ...)\n";
+            logger.debug("shape wkt= {}", shapeWkt);
+            GeometryFactory fact = new GeometryFactory();
+            WKTReader rdr = new WKTReader(fact);
+            Geometry g = rdr.read(shapeWkt);
+            LengthIndexedLine indexedLine = new LengthIndexedLine(g);
+            return indexedLine;
+        }
+        catch (Exception ex) {
+            logger.error("failed to build LengthIndexedLine from shape", ex);
+            return null;
+        }
+    }
+
+    private String convertToUtmAndConstructWktFromShape(String shape) throws ParseException {
+        String coordsInShape = shape.split("\"shape\":")[1];
+        logger.info("{}", coordsInShape);
+        String json =
+                "{\"type\": \"LineString\",\"coordinates\": " +
+                        shape.split("\"shape\":")[1];
+        Geometry geometry = (new GeoJsonReader()).read(json);
+        Coordinate[] coords = geometry.getCoordinates();
+        List<Coordinate> utmCoords = List.of(coords).map(coordinate -> new Coordinate(convertLatLonToITM(coordinate)));
+        String coordsAsStr = utmCoords.map(coord -> " " + coord.getX() + " " + coord.getY()).collect(Collectors.joining(","));
+        String lineString = "LINESTRING (" + coordsAsStr + ")";
+        return lineString;
     }
 
     private TripData BuidTripDataForMissingDeparture(String departure, String date, String routeId) {
@@ -814,6 +950,9 @@ public class SiriData {
         sp.time_recorded = map.get("time_recorded");
         sp.recalculatedETA = map.get("recalculatedETA");
         sp.timestamp = map.get("timestamp");
+        if (map.containsKey("distanceFromStart")) {
+            sp.distanceFromStart = Long.parseLong( map.get("distanceFromStart") );
+        }
         return sp;
     }
 
