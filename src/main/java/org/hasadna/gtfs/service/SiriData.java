@@ -8,7 +8,6 @@ import io.vavr.collection.*;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
 import org.hasadna.gtfs.Spark;
-import org.hasadna.gtfs.db.JsonClient;
 import org.hasadna.gtfs.db.MemoryDB;
 import org.hasadna.gtfs.entity.StopsTimeData;
 import org.locationtech.jts.geom.Coordinate;
@@ -399,8 +398,6 @@ public class SiriData {
         return tripData;
     }
 
-    @Autowired
-    JsonClient jsonClient;
 
     public Map<String, Map<String, Stream<String>>> groupLinesOfEachRoute(final List<String> allRouteIds, final String date) {
         // find in redis
@@ -408,7 +405,7 @@ public class SiriData {
         for (String routeId : allRouteIds) {
             java.util.Map<String, java.util.List<String>> res = null ;
             try {
-                res = jsonClient.getSiriResultsOfRoute(date, routeId);
+                //res = jsonClient.getSiriResultsOfRoute(date, routeId);
             }
             catch (Exception ex) {
                 // absorb, res will be null
@@ -428,8 +425,8 @@ public class SiriData {
         logger.info("some routeIds found in Redis, retrieve...");
         Map<String, Map<String, Stream<String>>> mapRouteAndTrip1 = HashMap.empty();
         for (String routeId : exist) {
-            mapRouteAndTrip1 = mapRouteAndTrip1.put(routeId,
-                                                convert(jsonClient.getSiriResultsOfRoute(date, routeId)));
+//            mapRouteAndTrip1 = mapRouteAndTrip1.put(routeId,
+//                                                convert(jsonClient.getSiriResultsOfRoute(date, routeId)));
 
             logger.info("retreived {}", mapRouteAndTrip1.keySet().toList());
             //return mapRouteAndTrip1;
@@ -483,13 +480,13 @@ public class SiriData {
         logger.debug("{}", foundInSiri.toJavaList());
         for (String routeId : mapRouteIdToLinesOfSiriLog.keySet().toList().sorted()) {
             if (foundInSiri.contains(routeId)) {
-                jsonClient.saveSiriResultsOfRoute(date, routeId, convertToJava(mapRouteAndTrip.get(routeId).get()));
+//                jsonClient.saveSiriResultsOfRoute(date, routeId, convertToJava(mapRouteAndTrip.get(routeId).get()));
             }
             else {
                 // also insert to redis, otherwise next time will again search for them in Siri logs
                 logger.info("inserting empty map to Redis for route {}, because Siri logs have no data for it", routeId);
                 Map<String, Stream<String>> emptyMap = HashMap.empty();
-                jsonClient.saveSiriResultsOfRoute(date, routeId, convertToJava(emptyMap));
+//                jsonClient.saveSiriResultsOfRoute(date, routeId, convertToJava(emptyMap));
             }
         }
 //        for (String routeId : foundInSiri) {

@@ -3,6 +3,7 @@ package org.hasadna.gtfs.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.collection.List;
+import io.vavr.collection.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,7 +18,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Component
 public class Routes {
@@ -26,7 +26,6 @@ public class Routes {
 
     @Value("${gtfsZipFileDirectory}")       // :/home/evyatar/logs/work/2019-04/gtfs/
     public String gtfsZipFileDirFullPath = "";
-
 
 
 

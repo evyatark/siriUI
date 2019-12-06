@@ -1,9 +1,5 @@
 package org.hasadna.gtfs.db;
 
-import com.oath.halodb.HaloDB;
-import com.oath.halodb.HaloDBException;
-import com.oath.halodb.HaloDBOptions;
-import com.oath.halodb.HaloDBStats;
 import org.dizitart.no2.Document;
 import org.dizitart.no2.Nitrite;
 import org.dizitart.no2.NitriteCollection;
