@@ -8,7 +8,17 @@ import javax.persistence.Id;
 
 @Entity
 public class RawData {
+/*
+create table raw_data (
+  id varchar(255) not null,
+  date varchar(255),
+  route_id varchar(255),
+  siri_raw_data varchar(255),
+  trip_id varchar(255),
+  primary key (id)
+) engine=InnoDB DEFAULT CHARSET=utf8;
 
+ */
     private String siriRawData;
     private String routeId;
     private String date;    // without time! 2019-12-30

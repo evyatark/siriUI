@@ -85,6 +85,11 @@ public class GtfsController {
         return count;
     }
 
+    @GetMapping(value = "siri/delete/{date}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Long deleteByDate(@PathVariable String date) {
+        return readSiriRawData.deleteAllOfDate(date);
+    }
+
     @GetMapping(value = "siri/group1/{date}", produces = MediaType.APPLICATION_JSON_VALUE)
     public String groupToTrips(@PathVariable String date) {
         return groupToTrips(date, 15530, 15530);
