@@ -57,6 +57,7 @@ public class GtfsController {
 
     @Autowired
     ReadSiriRawData readSiriRawData;
+
     @Autowired
     RawDataRepository rawDataRepository;
 

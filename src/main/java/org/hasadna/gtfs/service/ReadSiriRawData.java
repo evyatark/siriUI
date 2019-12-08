@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StopWatch;
 
+import java.util.stream.Collectors;
+
 @Component
 public class ReadSiriRawData {
 
@@ -26,6 +28,27 @@ public class ReadSiriRawData {
 
     @Autowired
     RawDataRepository rawDataRepository;
+
+    public Stream<String> getByDateAndRoute(String date, String routeId) {
+        java.util.List<RawData> list = rawDataRepository.findByDateAndRouteId(date, routeId);
+        //return list.stream().map(rawData -> rawData.getSiriRawData());
+        Stream<String> raw = List.ofAll(list).map(rawData -> rawData.getSiriRawData()).toStream();
+        return raw;
+    }
+
+    public boolean existInDatabase(final String date, final String routeId) {
+        long countByDate = rawDataRepository.countByDateAndRouteId(date, routeId);
+        boolean result = (countByDate > 0);
+        logger.debug("counted {} rows of date {} and route {}", countByDate, date, routeId);
+        return result;
+    }
+
+    public boolean existInDatabase(final String date) {
+        long countByDate = rawDataRepository.countByDate(date);
+        boolean result = (countByDate > 0);
+        logger.debug("counted {} rows of date {}", countByDate, date);
+        return result;
+    }
 
     @Transactional
     public long deleteAllOfDate(final String date) {

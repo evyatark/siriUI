@@ -82,6 +82,8 @@ public class SiriData {
     @Autowired
     Shapes shapeService;
 
+    @Autowired
+    ReadSiriRawData readSiriRawData;
 
     /******************* This is for calculating distance ********
      *
@@ -545,6 +547,20 @@ public class SiriData {
         return lines;
     }
 
+    private Stream<String> fileOrDatabase(String routeId, String date) {
+        if (readSiriRawData.existInDatabase(date, routeId)) {
+            Stream<String> result = readSiriRawData.getByDateAndRoute(date, routeId);
+            logger.info("retrieved siri rows of route {} and date {} from DB", routeId, date);
+            return result;
+        }
+        else {
+            logger.info("retrieved siri rows of route {} and date {} from file...", routeId, date);
+            // note that this reading does NOT insert to DB so next time will also read from file!!!
+            return readSiriLinesFromFile(routeId, date);
+            // inserting to DB is only by calling readSiriRawData.readEverything(date)
+        }
+    }
+
     /**
      * Process siri_rt_data files of the specified date, to create a data structure of
      * all trips of the specified route, according to data we received from Siri.
@@ -553,33 +569,9 @@ public class SiriData {
      * @return
      */
     public Map<String, io.vavr.collection.Stream<String>> findAllTrips(final String routeId, final String date) {
-        // names: list of names of all siri_rt_data files from the specified date
-        // (assumes we won't have more than 20 files of siri results in the same date)
-        String fileName = "siri_rt_data_v2." + date + "." + 0 + ".log.gz";
-        String fullPath = Utils.findFile(siriLogFilesDirectory, fileName);
-        if (fullPath == null) {
-            logger.warn("could not find file {} in path {}", fileName, siriLogFilesDirectory);
-        }
-        else {
-            logger.warn("found file {} in path {}, full path is {}", fileName, siriLogFilesDirectory, fullPath);
-        }
-        List<String> namesOldFormat = List.range(0, 20).map(i -> Utils.findFile(siriLogFilesDirectory, "siri_rt_data." + date + "." + i + ".log.gz")).filter(s -> s != null);  // 2019-04-04
-        List<String> names = List.range(0, 20).map(i -> Utils.findFile(siriLogFilesDirectory, "siri_rt_data_v2." + date + "." + i + ".log.gz")).filter(s -> s != null);  // 2019-04-04
-        names = names.appendAll(namesOldFormat);
-        logger.debug("the files are: {}", names.toString());
-        logger.info("reading {} siri results log files...", names.size());
-
-        // lines/vLines: Stream/List of all lines from the siri_rt-data file(s) [of day {date}, that belong to route ROUTE_ID
-        Stream<String> lines = this
-                .readSeveralGzipFiles(names.toJavaArray(String.class))
-                .filter(line -> line.length() > 1)
-                .filter(line -> gpsExists(line))
-                .filter(line -> routeId.equals(this.extractRouteId(line)));
-
         // actual reading from file happens here:
-        io.vavr.collection.Stream <String> vLines =
-                lines.collect(io.vavr.collection.Stream.collector());
-        logger.info("completed reading {} siri results log files", names.size());
+        io.vavr.collection.Stream <String> vLines = fileOrDatabase(routeId, date);
+        //io.vavr.collection.Stream <String> vLines = readSiriLinesFromFile(routeId, date);
 
         logger.info("grouping by tripId...");
 
@@ -592,6 +584,7 @@ public class SiriData {
 
         return trips;
     }
+
 
     private boolean gpsExists(String line) {
         // in files of old format (v1) the 0,0 is at the end of the line
