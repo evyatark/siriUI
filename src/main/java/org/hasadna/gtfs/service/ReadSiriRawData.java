@@ -29,49 +29,71 @@ public class ReadSiriRawData {
     @Autowired
     RawDataRepository rawDataRepository;
 
-    public Stream<String> getByDateAndRoute(String date, String routeId) {
+    public Stream<String> getByDateAndRoute(final String date, final String routeId) {
+
         java.util.List<RawData> list = rawDataRepository.findByDateAndRouteId(date, routeId);
         //return list.stream().map(rawData -> rawData.getSiriRawData());
         Stream<String> raw = List.ofAll(list).map(rawData -> rawData.getSiriRawData()).toStream();
         return raw;
     }
 
+    public java.util.List<String> getBy(final String date, final String routeId) {
+        return rawDataRepository.findByDateAndRouteIdOrdered(date, routeId);
+    }
+
+
+    // retrieve the data already grouped by trip
+    public Map<String, io.vavr.collection.Stream<String>> getByDateAndRouteGroupedByTrip(final String date, final String routeId) {
+        //Object obj = rawDataRepository.findByDateAndRouteIdGroupByTripId(date, routeId);
+        //Object obj = rawDataRepository.getRawDataGroupByTripId(date, routeId);
+        Object obj = rawDataRepository.findRawDataGrouped(date, routeId);
+        if (obj instanceof Map) {
+            Map map = ((Map) obj);
+            logger.debug("map size: {}",  map.keySet().length());
+        }
+        return null;
+    }
+
+
     public boolean existInDatabase(final String date, final String routeId) {
-        long countByDate = rawDataRepository.countByDateAndRouteId(date, routeId);
-        boolean result = (countByDate > 0);
-        logger.debug("counted {} rows of date {} and route {}", countByDate, date, routeId);
-        return result;
+        return (null != rawDataRepository.findFirstByDateAndRouteId(date, routeId));
+//        long countByDate = rawDataRepository.countByDateAndRouteId(date, routeId);
+//        boolean result = (countByDate > 0);
+//        logger.debug("counted {} rows of date {} and route {}", countByDate, date, routeId);
+//        return result;
     }
 
     public boolean existInDatabase(final String date) {
-        long countByDate = rawDataRepository.countByDate(date);
-        boolean result = (countByDate > 0);
-        logger.debug("counted {} rows of date {}", countByDate, date);
-        return result;
+        return (null != rawDataRepository.findFirstByDate(date));
+//        long countByDate = rawDataRepository.countByDate(date);
+//        boolean result = (countByDate > 0);
+//        logger.debug("counted {} rows of date {}", countByDate, date);
+//        return result;
     }
 
     @Transactional
     public long deleteAllOfDate(final String date) {
-        long countByDate = rawDataRepository.countByDate(date);
-        if (countByDate > 0) {
-            logger.info("deleting all {} lines of date {} that already exist in table!", countByDate, date);
+        //long countByDate = rawDataRepository.countByDate(date);
+        boolean exist = (null != rawDataRepository.findFirstByDate(date));
+        if (exist) {
+            logger.info("deleting all lines of date {} that already exist in table!",  date);
         }
         else {
             logger.warn("no rows exist of date {} !!", date);
             return -1;
         }
         long countDeleted = rawDataRepository.deleteQueryByDate(date);  // faster than deleteByDate(date);
-        if (countByDate == countDeleted) {
+        if ((null == rawDataRepository.findFirstByDate(date))) {
             logger.info("deleted all {} lines of date {}", countDeleted, date);
         }
         else {
-            logger.warn("deleted {} lines (out of {}) of date {}", countDeleted, countByDate, date);
+            logger.warn("deleted {} lines (out of ?) of date {}", countDeleted,  date);
 
         }
         return countDeleted;
     }
 
-    public void readEverything(final String date) {
+    public String readEverything(final String date) {
         displayCurrentState();
         // names: list of names of all siri_rt_data files from the specified date
         // (assumes we won't have more than 20 files of siri results in the same date)
@@ -118,26 +140,27 @@ public class ReadSiriRawData {
             // TODO maybe remove all lines from that date, then read and save all?
         }
         else {      // countByDate == 0 ==> nothing in DB from that date, let's save to DB
-            long mc = 0;   // count millions of lines
-            while (true) {
-                try {
-                    rawDataRepository.saveAll(lines.take(NUMBER_OF).map(line -> new RawData(line, extractRouteId(line), date, extractTripId(line))));
-                    logger.info("{} M", ++mc);
-                    if (lines.size() < NUMBER_OF) {
-                        logger.info("completed {} rows", mc * NUMBER_OF);
-                        break;
-                    }
-                    lines = lines.drop(NUMBER_OF);
-                } catch (Exception ex) {
-                    logger.error("exception", ex);
-                    logger.info("while trying to save the following {} lines:", NUMBER_OF);
-                    List x = List.ofAll(lines.take(NUMBER_OF));
-                    for (int i : Stream.range(0, x.size())) {
-                        logger.info("{}: {}", i, x.get(i));
-                    }
-                    break;
-                }
-            }
+            saveToDB(date, lines.toList(), NUMBER_OF);
+//            long mc = 0;   // count millions of lines
+//            while (true) {
+//                try {
+//                    rawDataRepository.saveAll(lines.take(NUMBER_OF).map(line -> new RawData(line, extractRouteId(line), date, extractTripId(line))));
+//                    logger.info("{} M", ++mc);
+//                    if (lines.size() < NUMBER_OF) {
+//                        logger.info("completed {} rows", mc * NUMBER_OF);
+//                        break;
+//                    }
+//                    lines = lines.drop(NUMBER_OF);
+//                } catch (Exception ex) {
+//                    logger.error("exception", ex);
+//                    logger.info("while trying to save the following {} lines:", NUMBER_OF);
+//                    List x = List.ofAll(lines.take(NUMBER_OF));
+//                    for (int i : Stream.range(0, x.size())) {
+//                        logger.info("{}: {}", i, x.get(i));
+//                    }
+//                    break;
+//                }
+//            }
         }
         logger.info("completed reading {} siri results log files", names.size());
         s.stop();
@@ -151,6 +174,33 @@ public class ReadSiriRawData {
 2019-12-04 09:49:03.309  INFO 20884 --- [nio-8080-exec-1] o.h.gtfs.controller.GtfsController       : for date 2019-11-30 we have in DB 1434630 lines
 
  */
+        return "dummy";
+    }
+
+    public String saveToDB(String date, List<String> lines, final int NUMBER_OF) {
+        logger.info("saving to DB, date={} ...", date);
+        long mc = 0;   // count millions of lines
+        while (true) {
+            try {
+                rawDataRepository.saveAll(lines.take(NUMBER_OF).map(line -> new RawData(line, extractRouteId(line), date, extractTripId(line))));
+                logger.info("{} M", ++mc);
+                if (lines.size() < NUMBER_OF) {
+                    logger.info("completed {} rows", mc * NUMBER_OF);
+                    break;
+                }
+                lines = lines.drop(NUMBER_OF);
+            } catch (Exception ex) {
+                logger.error("exception", ex);
+                logger.info("while trying to save the following {} lines:", NUMBER_OF);
+                List x = List.ofAll(lines.take(NUMBER_OF));
+                for (int i : Stream.range(0, x.size())) {
+                    logger.info("{}: {}", i, x.get(i));
+                }
+                break;
+            }
+        }
+        logger.info("saving to DB, date={} ... completed", date);
+        return "dummy";
     }
 
     private void displayCurrentState() {

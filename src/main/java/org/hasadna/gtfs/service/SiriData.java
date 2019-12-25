@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.collection.*;
+import org.apache.commons.lang3.time.StopWatch;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
 import org.hasadna.gtfs.Spark;
@@ -34,6 +35,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.hasadna.gtfs.service.Stops.decideGtfsFileName;
@@ -289,25 +293,37 @@ public class SiriData {
         final String key = generateKey("siri", routeId, date);
         final String fromDB = db.readKey(key);
         if ((fromDB != null) && !"[]".equals(fromDB)) return fromDB;
-        logger.debug("first read Siri logs, then read also GTFS (for data about stops)");
+        logger.debug("read Siri logs, then read also GTFS (for data about stops)");
 
         final List<TripData> tripsData = dayResultsWithSiri1(routeId, date);
 
+        logger.debug("converting result to json...");
+
         final String json = convertToJson(tripsData);
+
+        logger.trace("json result: {}", json.length() > 100 ? json.substring(0, 100) : json);
+        logger.debug("writing result to inMemoryDB with key {}", key);
+
         if (tripsData != null) db.writeKeyValue(key, json);
         return json;
     }
 
     private List<TripData> dayResultsWithSiri1(final String routeId, final String date) {
+        // SIRI
+
         // this reads all siri logs (of that day) to find text lines of that route
         // map of all trips of the specified routeId at day {date}
         // key: tripId
         // value: Stream/List of all lines from the siri_rt-data file(s), that belong to this trip
         final Map<String, io.vavr.collection.Stream<String>> trips = findAllTrips(routeId, date);
+        if (trips.isEmpty()) return List.empty();
+
+        // GTFS
         List<TripData> tripsData = buildFullTripsData2(trips, date, routeId);
 
+        // geographic (distances)
         if (enrichWithDistance) {
-            logger.info("enriching tripsData {}, {}", routeId, date);
+            logger.info("enriching tripsData {}, {} with geographic data", routeId, date);
             tripsData = enrich(tripsData, routeId, date);
         }
 
@@ -362,6 +378,10 @@ public class SiriData {
     private LengthIndexedLine buildIndexedLine(final String routeId, final String date) {
         try {
             String shape = shapeService.findShape(routeId, date);
+            if (shape == null) {
+                logger.error("no shape for route {} date {}, can't build LengthIndexedLine from shape", routeId, date);
+                return null;
+            }
             String shapeWkt = convertToUtmAndConstructWktFromShape(shape);
             //String shapeWkt = "LINESTRING ( 198307.16448649915 627976.016711362, 198320.8974821051 627972.7729288177, ...)\n";
             logger.debug("shape wkt= {}", shapeWkt);
@@ -538,9 +558,17 @@ public class SiriData {
         logger.info("reading {} siri results log files...", names.size());
 
         // lines/vLines: Stream/List of all lines from the siri_rt-data file(s) [of day {date}, that belong to route ROUTE_ID
-        Stream<String> lines = this
+        Stream<String> linesAll = this
                 .readSeveralGzipFiles(names.toJavaArray(String.class))
-                .filter(line -> line.length() > 1)
+                .filter(line -> line.length() > 1);
+        List<String> allLinesAsList = linesAll.toList();
+        // we convert to a List and do save to DB in a separate thread
+        logger.info("starting saveToDB in a separate thread");
+        CompletableFuture<String> future
+                = CompletableFuture.supplyAsync(() -> readSiriRawData.saveToDB(date, allLinesAsList, 1000));
+        //readSiriRawData.saveToDB(date, allLinesAsList, 1000);
+
+        Stream<String> lines = allLinesAsList.toStream()
                 .filter(line -> gpsExists(line))
                 .filter(line -> routeId.equals(this.extractRouteId(line)));
 
@@ -549,15 +577,39 @@ public class SiriData {
 
     private Stream<String> fileOrDatabase(String routeId, String date) {
         if (readSiriRawData.existInDatabase(date, routeId)) {
-            Stream<String> result = readSiriRawData.getByDateAndRoute(date, routeId);
-            logger.info("retrieved siri rows of route {} and date {} from DB", routeId, date);
-            return result;
+//            Stream<String> result = readSiriRawData.getByDateAndRoute(date, routeId);
+            logger.info("retrieving siri rows of route {} and date {} from DB", routeId, date);
+//            return result;
+
+            // retrieve the data faster?
+            // Map<String, io.vavr.collection.Stream<String>> trips
+            StopWatch sw = new StopWatch();
+            sw.start();
+            java.util.List<String> list =  readSiriRawData.getBy(date, routeId);
+            sw.stop();
+            logger.info("pure retrieved Stream<String> from DB: {} ms", sw.getTime(TimeUnit.MILLISECONDS));
+            return Stream.ofAll(list);
+        }
+        if (readSiriRawData.existInDatabase(date)) {
+            // meaning: siri logs of {date} were read into DB,
+            // but this route is not found in the logs, probably because it was not operating
+            // on that day
+            logger.info("date {} is in DB, but route {} is not found on that date", date, routeId);
+            return Stream.empty();
         }
         else {
-            logger.info("retrieved siri rows of route {} and date {} from file...", routeId, date);
+            logger.info("Nothing in DB for date {}, retrieving siri rows of route {} and date {} from file...", date, routeId, date);
             // note that this reading does NOT insert to DB so next time will also read from file!!!
-            return readSiriLinesFromFile(routeId, date);
-            // inserting to DB is only by calling readSiriRawData.readEverything(date)
+
+            Stream<String> result = readSiriLinesFromFile(routeId, date);
+
+            // execute inserting to DB in a new thread - not needed, is done inside readSiriLinesFromFile()
+//            logger.info("reading from siri files of date {} in a separate thread", date);
+//            CompletableFuture<String> future
+//                    = CompletableFuture.supplyAsync(() -> readSiriRawData.readEverything(date));
+
+            return result;
+
         }
     }
 
@@ -570,7 +622,14 @@ public class SiriData {
      */
     public Map<String, io.vavr.collection.Stream<String>> findAllTrips(final String routeId, final String date) {
         // actual reading from file happens here:
+        StopWatch sw = new StopWatch();
+        sw.start();
         io.vavr.collection.Stream <String> vLines = fileOrDatabase(routeId, date);
+        sw.stop();
+        logger.info("retrieved Stream<String> from file/DB: {} ms", sw.getTime(TimeUnit.MILLISECONDS));
+        if (vLines.isEmpty()) {
+            return HashMap.empty();
+        }
         //io.vavr.collection.Stream <String> vLines = readSiriLinesFromFile(routeId, date);
 
         logger.info("grouping by tripId...");
@@ -578,7 +637,11 @@ public class SiriData {
         // map of all trips of {routeId} at day {date}
         // key: tripId
         // value: Stream/List of all lines from the siri_rt-data file(s), that belong to this trip
+        sw.reset();
+        sw.start();
         Map<String, io.vavr.collection.Stream<String>> trips = vLines.groupBy(line -> this.extractTripId(line));
+        sw.stop();
+        logger.info("grouped Stream<String> by extracted tripId: {} ms", sw.getTime(TimeUnit.MILLISECONDS));
         DayOfWeek dayOfWeek = LocalDate.parse(date).getDayOfWeek();
         logger.warn("{} {} route {}:got {} trips, {} of them suspicious", dayOfWeek, date, routeId, trips.size(), trips.count(trip->trip._2.count(i->true)<28));
 

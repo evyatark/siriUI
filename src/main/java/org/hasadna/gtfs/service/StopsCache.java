@@ -37,7 +37,7 @@ public class StopsCache {
         while (s.hasNext()) {
             String tripId = s.next();
             map = map.put(tripId, map.getOrElse(tripId, List.empty()).append(count++));
-            if (count%1000000 == 0) logger.info("{}", count);
+            if (count%1000000 == 0) logger.debug("{}", count);
         }
         logger.warn("traversing completed!");
         logger.warn("trips found (keys in map): {}", map.keySet().size());

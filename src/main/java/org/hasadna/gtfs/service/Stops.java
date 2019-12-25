@@ -288,7 +288,7 @@ public class Stops {
 
     private Map<String, List<Long>> generateMapOfTextLines(String gtfsFileFullPath) {
         try {
-            logger.info("generateMapOfTextLines  {}   -  started...", gtfsFileFullPath);
+            logger.info("generateMapOfTextLines  {}   -  started...  (why is it not cached???)", gtfsFileFullPath);
             return stopsCache.generateMapOfTextLines(gtfsFileFullPath);
         }
         finally {

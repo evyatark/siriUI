@@ -92,26 +92,14 @@ public class GtfsController {
     }
 
     @GetMapping(value = "siri/group1/{date}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public String groupToTrips(@PathVariable String date) {
-        return groupToTrips(date, 15530, 15530);
+    public String groupToTrips1(@PathVariable String date) {
+        return groupToTrips(date);
     }
 
-    @GetMapping(value = "siri/group/{date}/{fromRouteId}/{toRouteId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public String groupToTrips(
-            @PathVariable String date, @PathVariable Integer fromRouteId, @PathVariable Integer toRouteId) {
+    @GetMapping(value = "siri/group/{date}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public String groupToTrips(@PathVariable String date) {
 
         readSiriRawData.readEverything(date);
-//        logger.info("===> siri/group/{}",date);
-//        logger.info("from={}", fromRouteId);
-//        logger.info("to={}", toRouteId);
-//        Map<String, Map<String, Stream<String>>> result = siriData.groupLinesOfEachRoute(
-//                //List.of("10811", "10812", "10801", "10802", "10804", "10805", "10806", "10807")
-//                List.rangeClosed(fromRouteId, toRouteId).map(number -> Integer.toString(number))
-//                , date);
-//        logger.info("<=== siri/group/{}",date);
-//        java.util.Map<String,java.util.Map<String, java.util.List<String>>> retVal = convertToJavaMaps(result);
-//        return retVal;
-
         java.util.List<RawData> result = rawDataRepository.findByDate(date);
         logger.info("for date {} we have in DB {} lines", date, result.size());
         return Integer.toString(result.size());
