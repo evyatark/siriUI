@@ -12,7 +12,7 @@ import java.util.Map;
 
 public interface RawDataRepository
         extends PagingAndSortingRepository<RawData, String>, QueryByExampleExecutor<RawData> {
-
+/*
     RawData findFirstByDateAndRouteId(String date, String routeId);
     RawData findFirstByDate(String date);
 
@@ -44,5 +44,7 @@ public interface RawDataRepository
 
     @Modifying
     @Query("delete from RawData f where f.date=:date")
-    long deleteQueryByDate(@Param("date") String date);
+    int deleteQueryByDate(@Param("date") String date);
+
+ */
 }

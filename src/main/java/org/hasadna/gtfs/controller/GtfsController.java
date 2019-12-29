@@ -78,7 +78,7 @@ public class GtfsController {
         long timeElapsed = Duration.between(start, finish).toMillis();
         return "OK, elapsed: " + timeElapsed;
     }
-
+/*
     @GetMapping(value = "siri/db/count/{date}", produces = MediaType.APPLICATION_JSON_VALUE)
     public Long countSiriRawData(@PathVariable String date) {
         long count = rawDataRepository.countByDate(date);
@@ -104,7 +104,7 @@ public class GtfsController {
         logger.info("for date {} we have in DB {} lines", date, result.size());
         return Integer.toString(result.size());
     }
-
+*/
     private java.util.Map<String,java.util.Map<String, java.util.List<String>>> convertToJavaMaps(Map<String, Map<String, Stream<String>>> result) {
         java.util.HashMap mapRoutes = new java.util.HashMap<>();
         result.keySet().forEach(key -> {

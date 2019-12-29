@@ -52,6 +52,9 @@ public class NitriteMemoryDB implements MemoryDB {
         if (key.startsWith("shape")) {
             ndb.getCollection("shapes").insert(Document.createDocument("key", key).put("value", value));
         }
+        else if (key.startsWith("gtfs")) {
+            ndb.getCollection("gtfs").insert(Document.createDocument("key", key).put("value", value));
+        }
         else {
             ndb.getCollection("siri").insert(Document.createDocument("key", key).put("value", value));
         }
@@ -111,15 +114,25 @@ public class NitriteMemoryDB implements MemoryDB {
                     return doc.get("value", String.class);
                 }
             }
+            else if (key.startsWith("gtfs")) {
+                NitriteCollection c = ndb.getCollection("gtfs");
+                Iterator<Document> it = c.find(eq("key", key)).iterator();
+                if (it.hasNext()) {
+                    logger.warn("found key {} in Nitrite GTFS collection", key);
+                    Document doc = it.next();
+
+                    return doc.get("value", String.class);
+                }
+            }
             else {
                 NitriteCollection c = ndb.getCollection("siri");
                 Iterator<Document> it = c.find(eq("key", key)).iterator();
 
-                if (key.equals("siri$15531@2019-11-03") && !cancellReEvaluation) {
-                    logger.info("key {} - value will be recalculated!", key);
-                    cancellReEvaluation = true;
-                    return null;
-                }
+//                if (key.equals("siri$15531@2019-11-03") && !cancellReEvaluation) {
+//                    logger.info("key {} - value will be recalculated!", key);
+//                    cancellReEvaluation = true;
+//                    return null;
+//                }
 
 
                 if (it.hasNext()) {

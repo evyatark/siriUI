@@ -72,7 +72,7 @@ public class SiriData {
     @Value("${search.stops.in.gtfs:false}")
     public boolean searchGTFS ;
 
-    public boolean enrichWithDistance = true;  // true - to use geoTools Linear Reference to calculate distance
+    public boolean enrichWithDistance = false;  // true - to use geoTools Linear Reference to calculate distance
 
     @Autowired
     Stops stops;
@@ -562,11 +562,12 @@ public class SiriData {
                 .readSeveralGzipFiles(names.toJavaArray(String.class))
                 .filter(line -> line.length() > 1);
         List<String> allLinesAsList = linesAll.toList();
+
+        logger.warn("skip saving!");
         // we convert to a List and do save to DB in a separate thread
-        logger.info("starting saveToDB in a separate thread");
-        CompletableFuture<String> future
-                = CompletableFuture.supplyAsync(() -> readSiriRawData.saveToDB(date, allLinesAsList, 1000));
-        //readSiriRawData.saveToDB(date, allLinesAsList, 1000);
+//        logger.info("starting saveToDB in a separate thread");
+//        CompletableFuture<String> future
+//                = CompletableFuture.supplyAsync(() -> readSiriRawData.saveToDB(date, allLinesAsList, 1000000));
 
         Stream<String> lines = allLinesAsList.toStream()
                 .filter(line -> gpsExists(line))

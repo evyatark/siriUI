@@ -28,7 +28,7 @@ public class ReadSiriRawData {
 
     @Autowired
     RawDataRepository rawDataRepository;
-
+/*
     public Stream<String> getByDateAndRoute(final String date, final String routeId) {
 
         java.util.List<RawData> list = rawDataRepository.findByDateAndRouteId(date, routeId);
@@ -82,7 +82,7 @@ public class ReadSiriRawData {
             logger.warn("no rows exist of date {} !!", date);
             return -1;
         }
-        long countDeleted = rawDataRepository.deleteQueryByDate(date);  // faster than deleteByDate(date);
+        int countDeleted = rawDataRepository.deleteQueryByDate(date);  // faster than deleteByDate(date);
         if ((null == rawDataRepository.findFirstByDate(date))) {
             logger.info("deleted all {} lines of date {}", countDeleted, date);
         }
@@ -140,6 +140,7 @@ public class ReadSiriRawData {
             // TODO maybe remove all lines from that date, then read and save all?
         }
         else {      // countByDate == 0 ==> nothing in DB from that date, let's save to DB
+            //logger.warn("skip saving!");
             saveToDB(date, lines.toList(), NUMBER_OF);
 //            long mc = 0;   // count millions of lines
 //            while (true) {
@@ -167,18 +168,11 @@ public class ReadSiriRawData {
         long currentCount = rawDataRepository.count();
         logger.info("completed inserting {} siri rows to DB in {} seconds.", currentCount - previousCount, s.getTotalTimeSeconds());
         logger.info("currently DB contains {} siri rows.", currentCount );
-/*
-2019-12-04 09:47:58.326  INFO 20884 --- [nio-8080-exec-1] o.hasadna.gtfs.service.ReadSiriRawData   : reading 3 siri results log files...
-2019-12-04 09:47:58.346  INFO 20884 --- [nio-8080-exec-1] o.hasadna.gtfs.service.ReadSiriRawData   : completed reading 3 siri results log files
-2019-12-04 09:49:01.483  INFO 20884 --- [nio-8080-exec-1] o.hasadna.gtfs.service.ReadSiriRawData   : completed inserting 3 siri results log files to DB
-2019-12-04 09:49:03.309  INFO 20884 --- [nio-8080-exec-1] o.h.gtfs.controller.GtfsController       : for date 2019-11-30 we have in DB 1434630 lines
-
- */
         return "dummy";
     }
 
     public String saveToDB(String date, List<String> lines, final int NUMBER_OF) {
-        logger.info("saving to DB, date={} ...", date);
+        logger.info("saving {} lines to DB, date={} ...", lines.size(), date);
         long mc = 0;   // count millions of lines
         while (true) {
             try {
@@ -219,5 +213,5 @@ public class ReadSiriRawData {
         return line.split(",")[5];
     }
 
-
+*/
 }
