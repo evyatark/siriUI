@@ -10,7 +10,9 @@ import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
 import org.hasadna.gtfs.Spark;
 import org.hasadna.gtfs.db.MemoryDB;
+import org.hasadna.gtfs.entity.InsideData;
 import org.hasadna.gtfs.entity.StopsTimeData;
+import org.hasadna.gtfs.repository.InsideDataRepository;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -577,7 +579,7 @@ public class SiriData {
     }
 
     private Stream<String> fileOrDatabase(String routeId, String date) {
-        if (readSiriRawData.existInDatabase(date, routeId)) {
+        if (existInDatabase(date, routeId)) {
 //            Stream<String> result = readSiriRawData.getByDateAndRoute(date, routeId);
             logger.info("retrieving siri rows of route {} and date {} from DB", routeId, date);
 //            return result;
@@ -586,12 +588,12 @@ public class SiriData {
             // Map<String, io.vavr.collection.Stream<String>> trips
             StopWatch sw = new StopWatch();
             sw.start();
-            java.util.List<String> list =  readSiriRawData.getBy(date, routeId);
+            java.util.List<String> list =  getBy(date, routeId);
             sw.stop();
             logger.info("pure retrieved Stream<String> from DB: {} ms", sw.getTime(TimeUnit.MILLISECONDS));
             return Stream.ofAll(list);
         }
-        if (readSiriRawData.existInDatabase(date)) {
+        if (existInDatabase(date)) {
             // meaning: siri logs of {date} were read into DB,
             // but this route is not found in the logs, probably because it was not operating
             // on that day
@@ -612,6 +614,29 @@ public class SiriData {
             return result;
 
         }
+    }
+
+
+
+    @Autowired
+    InsideDataRepository insideDataRepository;
+
+    private boolean existInDatabase(String date) {
+        InsideData result = insideDataRepository.findFirstByDate(date);
+        return (result != null);
+    }
+
+    private boolean existInDatabase(String date, String routeId) {
+        InsideData result = insideDataRepository.findFirstByDateAndRouteId(date, routeId);
+        return (result != null);
+    }
+
+    private java.util.List<String> getBy(String date, String routeId) {
+        return insideDataRepository
+                .findByDateAndRouteId(date, routeId)
+                .stream()
+                .map(insideData -> insideData.toString())
+                .collect(Collectors.toList());
     }
 
     /**
