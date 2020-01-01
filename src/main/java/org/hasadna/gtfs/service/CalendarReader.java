@@ -26,9 +26,21 @@ public class CalendarReader {
 
     public String theDate = "";
 
-    Map<String, Stream<String>> map = HashMap.empty();
+    Map<String, List<String>> map = HashMap.empty();
 
     private static final Logger logger = LoggerFactory.getLogger(CalendarReader.class);
+
+    public CalendarReader() {
+    }
+
+    private CalendarReader(String _directoryOfGtfsFile) {
+        super();
+        setDirectoryOfGtfsFile(_directoryOfGtfsFile);
+    }
+
+    public static CalendarReader make(String _directoryOfGtfsFile) {
+        return new CalendarReader(_directoryOfGtfsFile);
+    }
 
     public static int dayOfWeek(String aDate) {
         if (StringUtils.isEmpty(aDate)) {
@@ -45,12 +57,13 @@ public class CalendarReader {
     public String f(String line) {
         return line.split(",")[0];
     }
-    public Map<String, Stream<String>> readAllCalendar(String date) {
+
+    public Map<String, List<String>> readAllCalendar(String date) {
         final String gtfsZipFileName = decideGtfsFileName(date);
         final String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
         final ReadZipFile rzf = new ReadZipFile();
-        Map<String, Stream<String>> mapServiceIdToCalendarLines = rzf
-                .calendarLinesFromFile(gtfsZipFileFullPath)
+        Map<String, List<String>> mapServiceIdToCalendarLines = rzf
+                .calendarLinesFromFile(gtfsZipFileFullPath).toList()
                 .groupBy(line -> line.split(",")[0]);
         /** mapServiceIdToCalendarLines:
                 ("19900" -> "19900,0,0,0,0,0,1,0,20191015,20191019"),
@@ -67,7 +80,7 @@ public class CalendarReader {
         return mapServiceIdToCalendarLines;
     }
 
-    public Map<String, Stream<String>> readCalendar(String date) {
+    public Map<String, List<String>> readCalendar(String date) {
         if (map.isEmpty()) {
             synchronized (map) {
                 if (map.isEmpty()) {
@@ -79,11 +92,11 @@ public class CalendarReader {
         return map;
     }
 
-    public List<String> linesContainDate(List<String> lines, String date) {
+    public static List<String> linesContainDate(List<String> lines, String date) {
         return lines.filter(line -> lineContainsDate(line, date));
     }
 
-    public List<String> linesContainDateAndDayOfWeek(final List<String> lines, final String date) {
+    public static List<String> linesContainDateAndDayOfWeek(final List<String> lines, final String date) {
         final int dayOfWeek = dayOfWeek(date);
         final List<String> linesWithDay = lines
                 .filter(line -> lineContainsDate(line, date))
@@ -91,13 +104,13 @@ public class CalendarReader {
         return linesWithDay;
     }
 
-    private boolean lineContainsDayOfWeek(String line, int dayOfWeek) {
+    private static boolean lineContainsDayOfWeek(String line, int dayOfWeek) {
         // example: "19904,0,0,0,0,0,0,1,20191015,20191019"
         final String[] values = line.split(",");
         return "1".equals(values[dayOfWeek]);
     }
 
-    private boolean lineContainsDate(final String line, final String date) {
+    private static boolean lineContainsDate(final String line, final String date) {
         // example: "19904,0,0,0,0,0,0,1,20191015,20191019"
         final String[] values = line.split(",");
         final String dateFrom = values[8];

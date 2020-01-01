@@ -15,11 +15,15 @@ import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.util.StopWatch;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import static org.hasadna.gtfs.service.Stops.decideGtfsFileName;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -334,6 +338,52 @@ public class SiriDataTest {
         }
     }
 
+    @Value("${gtfsZipFileDirectory}")
+    public String directoryOfGtfsFile;
+
+    @Test
+    public void test16() {
+        String date = "2019-12-31";
+        String routeId = "15527";
+        String gtfsZipFileName = "gtfs" + date + ".zip";
+        StopWatch sw = new StopWatch();
+        sw.start();
+        List<String> tripIds = siriData.findAlternateTripIds(routeId, date, null, null);
+        sw.stop();
+        logger.info("takes {} ms", sw.getLastTaskTimeMillis());
+
+
+//        for (String tripId : tripIds) {
+//            logger.info(tripId);
+//        };
+        Assertions.assertThat(tripIds).hasSize(40);
+//        for (String rid : List.of("15527", "15528", "15527", "15528", "15527", "15528", "15532")) {
+//            sw.start();
+//            siriData.findAlternateTripIds(rid, date);
+//            sw.stop();
+//            logger.info("{} takes {} ms", rid, sw.getLastTaskTimeMillis());
+//        }
+
+
+        // works much faster if we read tripLines once and pass it when calling
+        gtfsZipFileName = decideGtfsFileName(date);
+        final String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
+        final ReadZipFile rzf = new ReadZipFile();
+        final List<String> tripLines = rzf.tripLinesFromFile(gtfsZipFileFullPath).toList();
+        // The file is only 42MB so it is not much to keep in memory
+
+        final Map<String, List<String>> serviceIdToCalendarLines = CalendarReader.make(directoryOfGtfsFile).readCalendar(date);
+
+        for (int i = 0 ; i < 10 ; i++) {
+            for (String rid : List.of("15527", "15528", "15527", "15528", "15527", "15528", "15532")) {
+                sw.start();
+                siriData.findAlternateTripIds(rid, date, tripLines, serviceIdToCalendarLines);
+                sw.stop();
+                logger.info("{} takes {} ms", rid, sw.getLastTaskTimeMillis());
+            }
+        }
+
+    }
 
 
 }
