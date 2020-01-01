@@ -2,8 +2,11 @@ package org.hasadna.gtfs.service;
 
 import io.vavr.Tuple2;
 import io.vavr.collection.*;
+import io.vavr.control.Option;
+import org.hasadna.gtfs.entity.GtfsStopTime;
 import org.hasadna.gtfs.entity.StopData;
 import org.hasadna.gtfs.entity.StopsTimeData;
+import org.hasadna.gtfs.repository.GtfsStopTimesRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +33,11 @@ public class Stops {
     @Autowired
     StopsCache stopsCache;
 
+    /**
+     * return Map of stopId to StopData
+     * @param gtfsZipFileName
+     * @return
+     */
     public Map<String, StopData> readStopDataFromFile(String gtfsZipFileName) {
 
         Map<String, StopData> map = HashMap.empty();
@@ -109,7 +117,50 @@ public class Stops {
         return gtfsZipFileFullPath;
     }
 
+    @Autowired
+    GtfsStopTimesRepository gtfsStopTimesRepository;
 
+    public Map<Integer, StopsTimeData> readStopsTimeDataOfTripFromDB(String tripId, String date) {
+        logger.debug("readStopsTimeDataOfTripFromDB, tripId={}, date={}", tripId, date);
+        java.util.List<GtfsStopTime> all = gtfsStopTimesRepository.findByDateAndTripId(date, tripId);
+        logger.debug("findByDateAndTripId returned a list with {} items", all.size());
+        Map<String, List<GtfsStopTime>> map = List.ofAll(all).groupBy(gtfsStopTime -> gtfsStopTime.getStopSequence());
+        logger.debug("after grouping, map contains {} keys: {}", map.keySet().length(), map.keySet());
+        Map<Integer, StopsTimeData> mmap = HashMap.empty();
+        for (String sequenceStr : map.keySet()) {
+            logger.trace("processing stop_sequence {}", sequenceStr);
+            Integer sequence = Integer.parseInt(sequenceStr);
+            Option<List<GtfsStopTime>> w = map.get(sequenceStr);
+            if (w.isEmpty() || w.get().isEmpty()) {
+                continue;
+            }
+            if (w.get().length() > 1) {
+                logger.warn("more than 1 item in list. tripId={}, date={}, items=", tripId, date);
+                for (GtfsStopTime gtfsStopTime : w.get()) {
+                    logger.warn("{}", gtfsStopTime);
+                }
+
+            }
+            GtfsStopTime gst = w.get().head();
+            StopsTimeData std = new StopsTimeData(gst.getTripId(), gst.getArrivalTime(), gst.getDepartureTime(), gst.getStopId(), gst.getStopSequence(), gst.getDistance());
+            logger.debug("StopsTimeData created for trip {}, stop sequence {}", std.trip_id, std.stop_sequence);
+            // read stops.txt file from GTFS zip. return map of stopId to stopData (all data we have about this stop in GTFS)
+            Map<String, StopData> stopsMap = this.getMapForDate(date);  // it calls readStopsMap(date) only once, after that data is cached
+            std.stopData = stopsMap.get(std.stop_id).get();
+            logger.debug("stopData added from stopsMap. StopData={}", std.stopData);
+            mmap = mmap.put(sequence, std);
+        }
+        return mmap;
+    }
+
+    public Map<String, Map<Integer, StopsTimeData>> readStopsTimeDataOfTripFromFile1(Set<String> tripIds, String date) {
+        logger.debug("readStopsTimeDataOfTripFromFile1, date={}, tripIds={}", date, tripIds);
+        Map<String, Map<Integer, StopsTimeData>> result = HashMap.empty();
+        for (String tripId : tripIds) {
+            result = result.put(tripId, readStopsTimeDataOfTripFromDB(tripId, date));
+        }
+        return result;
+    }
     /**
      * reads from the stops_time.txt file only the lines relevant to specific tripId.
      * creates a map with key=tripId and value= a map containing all stops of that trip.
@@ -117,7 +168,8 @@ public class Stops {
      * The value of the second map is the StopsTimeData object, containing all data about that stop.
      * @return
      */
-    public Map<String, Map<Integer, StopsTimeData>> readStopsTimeDataOfTripFromFile(Set<String> tripIds, String date) {
+    public Map<String, Map<Integer, StopsTimeData>> readStopsTimeDataOfTripFromFile3(Set<String> tripIds, String date) {
+        logger.debug("readStopsTimeDataOfTripFromFile3, date={}, tripIds={}", date, tripIds);
         Map<String, Map<Integer, StopsTimeData>> map = HashMap.empty();
         // read stops.txt file from GTFS zip. return map of stopId to stopData (all data we have about this stop in GTFS)
         Map<String, StopData> stopsMap = this.getMapForDate(date);  // getMapForDate() is cached, will read stops.txt of each date only once.
@@ -132,11 +184,12 @@ public class Stops {
             logger.debug("Done! map has {} tripIds for date {}", x.size(), date);
 
             // (only one path over lines, for all tripIds! should be faster)
+            // x is the list of line numbers in stop_times.txt for all lines that refer to each tripId
             logger.debug("generate StopsTimeData for all trips (60 seconds!) ...");  //{}", tripIds.toList().sorted().toJavaList());
             map = generateStopsTimeDataForAllTrips(tripIds, x, stopsMap, gtfsZipFileFullPath);
             // map is supposed to contain only tripIds of the form 20001000, not 20001000_23102019.
             // So we change all our tripIds to this form also.
-            if (logger.isWarnEnabled()) {
+            if (logger.isWarnEnabled()) {   // TODO in 50% of the cases map is empty, so check it first
                 final Map<String, Map<Integer, StopsTimeData>> map1 = map;
                 Set<String> tripsNotFound = tripIds.map(tripId -> fixTripId(tripId)).filter(tripId -> !map1.containsKey(tripId));
                 if (!tripsNotFound.isEmpty()) {
@@ -248,9 +301,41 @@ public class Stops {
      * @param date
      * @return map of tripId to a map. The inner map is a map of stopId to Stop record.
      */
-    public Map<String, Map<Integer, StopsTimeData>> generateStopsMap1(Set<String> trip_ids, String date ) {
-        return readStopsTimeDataOfTripFromFile(trip_ids, date);
+    public Map<String, Map<Integer, StopsTimeData>> generateStopsMap1(Set<String> trip_ids, String date, boolean plusOldResult) {
+        if (plusOldResult) {
+            logger.info("readStopsTimeDataOfTripFromFile3 started...");
+            Map<String, Map<Integer, StopsTimeData>> oldResult = readStopsTimeDataOfTripFromFile3(trip_ids, date);
+            logger.info("when retrieving the data from GTFS files (not from DB), we get these tripIds: {}", oldResult.keySet().toJavaSet());
+            oldResult.keySet().toJavaSet().forEach(tripId ->
+                logger.debug("for trip {} got a StopTimeData for {} stop sequences", tripId, oldResult.get(tripId).get().keySet().length())
+            );
+        }
+        Map<String, Map<Integer, StopsTimeData>> result = readStopsTimeDataOfTripFromFile1(trip_ids, date);
+        result = removeEmptyMaps(result);
+        return result;
+    }
 
+    private Map<String, Map<Integer, StopsTimeData>> removeEmptyMaps(final Map<String, Map<Integer, StopsTimeData>> map) {
+        Map<Integer, StopsTimeData> emptyMap = HashMap.empty();
+        Map<String, Map<Integer, StopsTimeData>> result = map;
+        // remove empty maps
+        List<String> keysToRemove = List.empty();
+        for (String key : result.keySet()) {
+            if (result.getOrElse(key, emptyMap).isEmpty()) {
+                keysToRemove = keysToRemove.append(key);
+            }
+        }
+        if (!keysToRemove.isEmpty()) {
+            for (String key : keysToRemove) {
+                result = result.remove(key);
+            }
+        }
+        return result;
+    }
+
+    public Map<String, Map<Integer, StopsTimeData>> generateStopsMap2(Set<String> tripIds, String date ) {
+        //tripIds.map(tripId -> readStopsTimeDataOfTripFromFile(tripId, date);
+        return readStopsTimeDataOfTripFromFile1(tripIds, date);
     }
 
     public Map<String, Map<Integer, StopsTimeData>> generateStopsMap(Set<Tuple2<String, String>> trips, String date ) {
@@ -358,7 +443,15 @@ public class Stops {
         return lines;
     }
 
-
+    /**
+     * return a map that for each tripId as key, has as value the list of all text lines from stop_times.txt
+     * that refer to that tripId
+     * @param tripIds
+     * @param mapOfTextLines
+     * @param FILE_NAME_INSIDE_GTFS_ZIP
+     * @param fileFullPath
+     * @return
+     */
     private Map<String, List<String>> getLinesOfTrips(final List<String> tripIds,
                                         final Map<String, List<Long>> mapOfTextLines,
                                         final String FILE_NAME_INSIDE_GTFS_ZIP,

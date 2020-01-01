@@ -14,10 +14,10 @@ public class StopsTimeData {
     private static Logger logger = LoggerFactory.getLogger(StopsTimeData.class);
 
     public String trip_id ;
-    public String stop_id ;
-    public String stop_sequence;
     public String arrivalTime;
     public String departureTime;
+    public String stop_id ;
+    public String stop_sequence;
     public String distance;     // in meters
     public StopData stopData;
 

@@ -918,7 +918,7 @@ public class SiriData {
             ObjectMapper x = new ObjectMapper();
             // vavr List does not create good JSON. so use java.util.List
             String json = x.writeValueAsString(javaList);
-            logger.debug("{}",x.writerWithDefaultPrettyPrinter().writeValueAsString(javaList));
+            logger.trace("{}",x.writerWithDefaultPrettyPrinter().writeValueAsString(javaList));
             logger.info("                  ... Done");
             return json;
         } catch (JsonProcessingException e) {
@@ -1072,13 +1072,22 @@ public class SiriData {
         return pg;
     }
 
+    private static String getTripId(TripData tripData) {
+        if (!StringUtils.isEmpty(tripData.siriTripId)) return tripData.siriTripId;
+        else if (!StringUtils.isEmpty(tripData.gtfsTripId)) return tripData.gtfsTripId;
+        else if (!StringUtils.isEmpty(tripData.alternateTripId)) return tripData.alternateTripId;
+        return "";
+    }
 
     public TripData enrichSingleTrip(TripData tripData, Map<String, Map<Integer, StopsTimeData>> allStopsOfAllTrips) {
         if (allStopsOfAllTrips.isEmpty()) return tripData;
+        logger.debug("enrich single trip {}", getTripId(tripData));
         Map<Integer, StopsTimeData> stopsTimeData = allStopsOfAllTrips.getOrElse(tripData.siriTripId, null);
         if (stopsTimeData == null) {
+            logger.debug("data about stops of trip {} does not exist yet, searching this trip again According To Departure Hour...", getTripId(tripData));
             String matchingTripAccordingToDepartureHour = null;
             for (String altTripId : allStopsOfAllTrips.keySet()) {
+                String depTime = "";
                 try {
                     // it could be tripData.originalAimedDeparture = "11:45"
                     // and allStopsOfAllTrips.get(altTripId).get(1).departureTime = "11:45:00"
@@ -1092,8 +1101,12 @@ public class SiriData {
                     else {
                         lt = LocalTime.parse(tripData.originalAimedDeparture);
                     }
-                    if (lt.compareTo(
-                            LocalTime.parse(allStopsOfAllTrips.get(altTripId).get().get(1).get().departureTime)) == 0) {
+                    depTime = allStopsOfAllTrips.get(altTripId).get().get(1).get().departureTime;
+                    if (depTime == null) {
+                        logger.debug("departureTime for alternateTripId {} is null", altTripId);
+                    }
+                    else if (lt.compareTo(
+                            LocalTime.parse(depTime)) == 0) {
                         matchingTripAccordingToDepartureHour = altTripId;
                         break;
                     }
@@ -1101,14 +1114,14 @@ public class SiriData {
                 catch (Exception ex) {
                     // tripData.originalAimedDeparture is sometimes 24:00 or even 25:00
                     // this causes DateTimeParseException
-                    logger.warn("absorbing ", ex);
+                    logger.warn("absorbing, departureTime={}", depTime, ex);
                 }
             }
             if (matchingTripAccordingToDepartureHour != null) {
                 tripData.alternateTripId = matchingTripAccordingToDepartureHour;
-                logger.debug("generating stops of trip {}", tripData.alternateTripId);
+                logger.debug("found matching trip with the same hour {}, generating stops of trip {}", tripData.originalAimedDeparture, tripData.alternateTripId);
                 Map<Integer, StopsTimeData> temporaryStopsTimeData = allStopsOfAllTrips.get(tripData.alternateTripId).get();
-                //tripData.stops =
+                logger.debug("creating featureCollection with all stops of trip {}", tripData.alternateTripId);
                 StopFeatureCollection sfc = StopsTimeData.createFeatures(temporaryStopsTimeData);
                 sfc.features = List.of(sfc.features).sortBy(stopFeature -> stopFeature.properties.stop_sequence).toJavaArray(StopFeature.class);
                 tripData.stops = sfc;
@@ -1118,8 +1131,9 @@ public class SiriData {
             // no need to put in td both stopsTimeData and stops - they contain exactly the same information
             // removing it will make the JSON much smaller!
             // - not needed: tripData.stopsTimeData = allStopsOfAllTrips.get(tripData.siriTripId);
-            logger.debug("generating stops of trip {}", tripData.siriTripId);
+            logger.debug("retrieving stops of existing trip {}", tripData.siriTripId);
             Map<Integer, StopsTimeData> temporaryStopsTimeData = allStopsOfAllTrips.get(tripData.siriTripId).get();
+            logger.debug("creating featureCollection with all stops of existing trip {}", tripData.siriTripId);
             StopFeatureCollection sfc = StopsTimeData.createFeatures(temporaryStopsTimeData);
             // sort the features according to stop_sequence
             sfc.features = List.of(sfc.features).sortBy(stopFeature -> Integer.parseInt(stopFeature.properties.stop_sequence)).toJavaArray(StopFeature.class);
@@ -1130,6 +1144,12 @@ public class SiriData {
     }
 
     public List<TripData> enrichTripsWithDataFromGtfs(final List<TripData> tripsData, final String date) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("enrichTripsWithDataFromGtfs: in: date={}, trips=", date);
+            for (TripData tripData : tripsData) {
+                logger.debug("{}", tripData);
+            }
+        }
         // tripsData is trips that we found in Siri. But sometimes these trip IDs are not found in GTFS???
         if (searchGTFS) {   // this part searches in GTFS files, which is very time consuming!
             // GTFS data is needed for displaying the stops in Leaflet widget UI
@@ -1142,9 +1162,9 @@ public class SiriData {
             logger.info("trip ids: {}", io.vavr.collection.List.ofAll(tripIds).sorted().toJavaList());
             List<String> alternateIds = findAlternateTripIds(tripsData.get(0).routeId, date);
             logger.info("alternate trip ids: {}", io.vavr.collection.List.ofAll(alternateIds).sorted().toJavaList());
-            Map<String, Map<Integer, StopsTimeData>> all =
-                    stops.generateStopsMap1(tripIds, date);
-
+            logger.debug("retrieve from GTFS data about stops");
+            Map<String, Map<Integer, StopsTimeData>> all = stops.generateStopsMap1(tripIds, date, true);  // why empty?????
+            logger.debug("retrieve from GTFS:  map of tripId to StopsData = {}, keys={}", all, all.keySet());   // here always empty map? because tripIds are without _{dateBegin}
             //Map<Integer, StopsTimeData> res = findAlternateTripId(tripsData.get(0).routeId, "", date);
             if (all.isEmpty() || all.size() < tripIds.size()) {
                 if (!alternateIds.isEmpty()) {
@@ -1154,10 +1174,10 @@ public class SiriData {
                     tripsData.forEach(td -> td.alternateTripId = alternateIds.find(id -> id.startsWith(td.siriTripId + "_")).getOrElse(""));
                     logger.info("alternate tripIds: {}", alternateIds.toJavaList());
                     Map<String, Map<Integer, StopsTimeData>> all2 =
-                            stops.generateStopsMap1(alternateIds.toSet(), date);
-                    logger.info(all2.toString());
+                            stops.generateStopsMap1(alternateIds.toSet(), date, true);
+                    logger.info("stops map from alternate trip Ids: {}",all2.toString());
                     all = all.merge(all2);
-                    logger.info(all.toString());
+                    logger.info("merged stops map: {}", all.toString());
                     //Set<Tuple2<String, String>> tripIdsWithAimedDepartureTimes = findAllTripIdsWithAimedDepartureTimes(tripsData);
                     // each tuple is (tripId, aimedDepartureTime) - maybe should be routeId and aimedDepartureTime?
                     // BUG???  I think it should be here:
@@ -1172,7 +1192,18 @@ public class SiriData {
 
             // returning an updated TripsData (with each of its tripData items updated to include "stops"
             final Map<String, Map<Integer, StopsTimeData>> allFinal = all;
-            return tripsData.map(tripData -> enrichSingleTrip(tripData, allFinal));
+
+            if (allFinal.isEmpty()) {
+                logger.debug("no data retrieved from GTFS about stops!");
+            }
+            List<TripData> result = tripsData.map(tripData -> enrichSingleTrip(tripData, allFinal));
+            if (logger.isDebugEnabled()) {
+                logger.debug("enrichTripsWithDataFromGtfs: out: trips=");
+                for (TripData tripData : tripsData) {
+                    logger.debug("{}", tripData);
+                }
+            }
+            return result;
 //            tripsData.forEach(tripData -> tripData.stopsTimeData = all.get(tripData.siriTripId));
 //            logger.info("                  ... stopsTimeData Done");
 //            tripsData.forEach(tripData -> {

@@ -16,6 +16,14 @@ public class StopsCache {
 
     private static Logger logger = LoggerFactory.getLogger(StopsCache.class);
 
+
+    /**
+     * reads the GTFS file stop_times.txt (the first data item in each line is a tripId)
+     * For each tripId, create a list of line numbers - the lines starting with that tripId
+     * (headers in stop_times.txt: trip_id,arrival_time,departure_time,stop_id,stop_sequence,pickup_type,drop_off_type,shape_dist_traveled
+     * @param gtfsFileFullPath
+     * @return
+     */
     @Cacheable("stopTimesTextLineMap")
     public Map<String, List<Long>> generateMapOfTextLines(String gtfsFileFullPath) {
         String FILE_NAME_INSIDE_GTFS_ZIP = "stop_times.txt";

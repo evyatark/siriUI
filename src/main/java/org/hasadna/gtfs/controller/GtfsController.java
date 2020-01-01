@@ -183,7 +183,7 @@ public class GtfsController {
     public java.util.Map<String, java.util.Map<Integer, StopsTimeData>> generateStopsMap2(@PathVariable final String routeId, @PathVariable final String tripId, @PathVariable final String date ) {
         logger.info("===> gtfs/stops/{}/{}/{}",routeId, tripId, date);
         try {
-            Map result = stops.generateStopsMap1(HashSet.of(tripId), date);
+            Map result = stops.generateStopsMap1(HashSet.of(tripId), date, false);
             if (!result.isEmpty()) {
                 return convertToJavaMaps2(result);
             } else {  // empty - usual method of searching tripId in GTFS stops_time.txt failed.
@@ -199,13 +199,13 @@ public class GtfsController {
 
     public java.util.Map<String, java.util.Map<Integer, StopsTimeData>> generateStopsMap2(final TripData tripData, final String date ) {
         String tripId = tripData.getSiriTripId();
-        Map result = stops.generateStopsMap1(HashSet.of(tripId), date);
+        Map result = stops.generateStopsMap1(HashSet.of(tripId), date, false);
         if (!result.isEmpty()) {
             return result.toJavaMap();
         }
         // empty - usual method of searching tripId in GTFS stops_time.txt failed.
         if (tripData.getAlternateTripId() != null) {
-            result = stops.generateStopsMap1(HashSet.of(tripData.getAlternateTripId()), date);
+            result = stops.generateStopsMap1(HashSet.of(tripData.getAlternateTripId()), date, false);
             if (!result.isEmpty()) {
                 return result.toJavaMap();
             }
@@ -262,7 +262,7 @@ public class GtfsController {
     public Map<String, Map<Integer, StopsTimeData>> generateStopsMap1(@PathVariable final String tripId, @PathVariable final String date ) {
         logger.info("===> gtfs/stops/{}/{}", tripId, date);
         try {
-            return stops.generateStopsMap1(HashSet.of(tripId), date);
+            return stops.generateStopsMap1(HashSet.of(tripId), date, false);
         }
         finally {
             logger.info("<=== gtfs/stops/{}/{}", tripId, date);
