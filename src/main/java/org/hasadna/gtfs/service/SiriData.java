@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.collection.*;
+import io.vavr.control.Option;
 import org.apache.commons.lang3.time.StopWatch;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
@@ -37,8 +38,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -74,7 +73,7 @@ public class SiriData {
     @Value("${search.stops.in.gtfs:false}")
     public boolean searchGTFS ;
 
-    public boolean enrichWithDistance = false;  // true - to use geoTools Linear Reference to calculate distance
+    public boolean enrichWithDistance = true;  // true - to use geoTools Linear Reference to calculate distance
 
     @Autowired
     Stops stops;
@@ -90,6 +89,9 @@ public class SiriData {
 
     @Autowired
     ReadSiriRawData readSiriRawData;
+
+    @Autowired
+    TripFileReader tripFileReader;
 
     /******************* This is for calculating distance ********
      *
@@ -344,8 +346,9 @@ public class SiriData {
             // start the indexed line from the first stop (not from start of shape linestring!!)
             double start = indexedLine.getStartIndex();
             Coordinate startOfLine = indexedLine.extractPoint(start);   // this is beginning of Shape. But sometimes it is NOT the location of first stop!!
-            // since location of stops is the same all day, it is enough to take one trip
-            TripData theChosen = tripsData.head();
+            // since location of stops is the same all day, it is tempting to say that it is enough to take one trip
+            // but some trips might have stops == null.
+            TripData theChosen = findTripWithStops(tripsData);
             StopFeature[] allStopsOnRoute = theChosen.stops.features;
             StopFeature firstDepartureStop = List.of(allStopsOnRoute).find(stop -> "1".equals(stop.properties.stop_sequence)).getOrNull();
             if (firstDepartureStop != null) {
@@ -359,14 +362,15 @@ public class SiriData {
                 logger.info("... adjusted");
             }
             for (TripData tripData : tripsData) {
-                logger.info("enriching trip {} that has {} siri features", tripData.siriTripId, tripData.siri.features.length);
+                if (tripData.siri == null) continue;
+                logger.debug("enriching trip {} that has {} siri features", tripData.siriTripId, tripData.siri.features.length);
 
                 for (SiriFeature sf : tripData.siri.features) {
                     Coordinate siriLocation = new Coordinate(Double.parseDouble(sf.geometry.coordinates[0]), Double.parseDouble(sf.geometry.coordinates[1]));
                     Coordinate utmCoordinate = convertLatLonToITM(siriLocation);
                     double indexOfSiriPoint = indexedLine.project(utmCoordinate);
                     long distanceInMeters = new Double(indexedLine.extractLine(start, indexOfSiriPoint).getLength()).longValue();
-                    logger.info("added distance {} to siriFeature {}", distanceInMeters, sf.properties.time_recorded);
+                    logger.trace("added distance {} to siriFeature {}", distanceInMeters, sf.properties.time_recorded);
                     sf.properties.distanceFromStart = distanceInMeters;
                 }
             }
@@ -375,6 +379,12 @@ public class SiriData {
             logger.info("failed to enrich (with distance) Siri Locations in trips. Absorbing exception", ex);
         }
         return tripsData;
+    }
+
+    private TripData findTripWithStops(final List<TripData> tripsData) {
+        final TripData NULL_TRIP = null;
+        final Option<TripData> tripOption = tripsData.find(tripData -> tripData.stops != null);
+        return tripOption.getOrElse(NULL_TRIP);
     }
 
     private LengthIndexedLine buildIndexedLine(final String routeId, final String date) {
@@ -756,29 +766,29 @@ public class SiriData {
         // from Siri:
         List<TripData> tripsAccordingToSiri = buildSiriData(trips, date, routeId);
 
-        logger.warn("before combine");
+        logger.debug("before combine");
         for (int index = 0 ; index < tripsAccordingToGtfsTripIdToDate.size(); index++) {
             TripData tripData = tripsAccordingToGtfsTripIdToDate.get(index);
-            logger.warn("tripData siriTripId={},  alternateTripId={}, gtfsTripId={}, oad={}, stops={}", tripData.siriTripId, tripData.alternateTripId, tripData.gtfsTripId, tripData.originalAimedDeparture, tripData.stops );
+            logger.debug("tripData siriTripId={},  alternateTripId={}, gtfsTripId={}, oad={}, stops={}", tripData.siriTripId, tripData.alternateTripId, tripData.gtfsTripId, tripData.originalAimedDeparture, tripData.stops );
             if ((tripData.stops != null) && tripData.stops.features != null) {
-                logger.warn("{} stops exist", tripData.stops.features.length);
+                logger.debug("{} stops exist", tripData.stops.features.length);
             }
         }
 
         // combine
         List<TripData> tripsData = completeWithGtfsData(tripsAccordingToSiri, tripsAccordingToGtfsTripIdToDate);
-        logger.warn("after combine");
+        logger.debug("after combine");
 
         if ((tripsData == null) || tripsData.isEmpty()) {
-            logger.warn("WARNING: empty or null trips data!");
+            logger.warn("WARNING: empty or null trips data! (routeId={}, date={})", routeId, date);
             return List.empty();
         }
         else {
             for (int index = 0 ; index < tripsData.size(); index++) {
                 TripData tripData = tripsData.get(index);
-                logger.warn("tripData siriTripId={},  alternateTripId={}, gtfsTripId={}, oad={}, stops={}", tripData.siriTripId, tripData.alternateTripId, tripData.gtfsTripId, tripData.originalAimedDeparture, tripData.stops );
+                logger.debug("tripData siriTripId={},  alternateTripId={}, gtfsTripId={}, oad={}, stops={}", tripData.siriTripId, tripData.alternateTripId, tripData.gtfsTripId, tripData.originalAimedDeparture, tripData.stops );
                 if ((tripData.stops != null) && tripData.stops.features != null) {
-                    logger.warn("{} stops exist", tripData.stops.features.length);
+                    logger.debug("{} stops exist", tripData.stops.features.length);
                 }
             }
         }
@@ -803,7 +813,7 @@ public class SiriData {
         // only from Siri:
         List<TripData> tripsData = buildTripData_orig_(trips, date, routeId);
         if ((tripsData == null) || tripsData.isEmpty()) {
-            logger.warn("WARNING: empty or null trips data!");
+            logger.warn("WARNING: empty or null trips data! (routeId={}, date={})", routeId, date);
             return List.empty();
         }
         displaySuspiciousTrips(tripsData);
@@ -917,7 +927,8 @@ public class SiriData {
             java.util.List javaList = tripsData.sortBy(tripData -> tripData.originalAimedDeparture).toJavaList();
             ObjectMapper x = new ObjectMapper();
             // vavr List does not create good JSON. so use java.util.List
-            String json = x.writeValueAsString(javaList);
+            //String json = x.writeValueAsString(javaList);
+            String json = x.writerWithDefaultPrettyPrinter().writeValueAsString(javaList);
             logger.trace("{}",x.writerWithDefaultPrettyPrinter().writeValueAsString(javaList));
             logger.info("                  ... Done");
             return json;
@@ -1177,9 +1188,7 @@ public class SiriData {
 
             String gtfsZipFileName = decideGtfsFileName(date);
             final String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
-            final ReadZipFile rzf = new ReadZipFile();
-            final List<String> tripLines = rzf.tripLinesFromFile(gtfsZipFileFullPath).toList();
-
+            final List<String> tripLines = List.ofAll( tripFileReader.retrieveTripLinesFromFile(gtfsZipFileFullPath) );
             // actually these should be named gtfsTripIds
             List<String> alternateIds = findAlternateTripIds(tripsData.get(0).routeId, date, tripLines, CalendarReader.make(directoryOfGtfsFile).readCalendar(date));
             logger.info("alternate trip ids: {}", io.vavr.collection.List.ofAll(alternateIds).sorted().toJavaList());
@@ -1297,7 +1306,7 @@ public class SiriData {
                     //dayOfWeek.toString();
                     td.siriTripId = tripId;
                     //td.siri1 = thisTrip.map(line -> createSiriReading(line)).toJavaList();
-                    td.siri = new SiriFeatureCollection(thisTrip.map(line -> createSiriPart(line)).asJava().toArray(new SiriFeature[]{}));
+                    td.siri = new SiriFeatureCollection(thisTrip.map(line -> createSiriPart(line)).filter(sf -> !zeroCoordinates(sf.geometry.coordinates)).asJava().toArray(new SiriFeature[]{}));
                     td.vehicleId = extractVehicleId(firstLine);
                     td.agencyCode = extractAgency(firstLine);
                     td.agencyName = agencyNameFromCode(td.agencyCode);
@@ -1308,6 +1317,12 @@ public class SiriData {
                     return td;
                 }).toList();
         return tripsAccordingToSiri;
+    }
+
+    private boolean zeroCoordinates(String[] coordinates) {
+        return ((coordinates.length == 2) &&
+                "0".equals(coordinates[0]) &&
+                "0".equals(coordinates[1]) );
     }
 
     /**
@@ -1880,8 +1895,7 @@ public class SiriData {
         if ((tripLines == null) || tripLines.isEmpty()) {
             final String gtfsZipFileName = decideGtfsFileName(date);
             final String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
-            final ReadZipFile rzf = new ReadZipFile();
-            tripLines = rzf.tripLinesFromFile(gtfsZipFileFullPath).toList();
+            tripLines = List.ofAll( tripFileReader.retrieveTripLinesFromFile(gtfsZipFileFullPath) );
         }
         final String prefixRoute = routeId + "," ;
         // from result, take unique serviceIds (the second value in each line)
@@ -1965,8 +1979,8 @@ public class SiriData {
         final ReadZipFile rzf = new ReadZipFile();
         final String prefixRoute = routeId + "," ;
         // from result, take unique serviceIds (the second value in each line)
-        java.util.List<String> serviceIds = rzf
-                .tripLinesFromFile(gtfsZipFileFullPath)
+        java.util.List<String> serviceIds = List.ofAll(
+                tripFileReader.retrieveTripLinesFromFile(gtfsZipFileFullPath))
                 .filter(line -> line.startsWith(prefixRoute))
                 .map(line -> getServiceId(line))
                 .distinct()
@@ -1992,12 +2006,10 @@ public class SiriData {
         final String prefixRouteAndService = routeId + "," + serviceId + ",";
         // (assuming the result has serviceId 19902) now search: grep "^15532,19902" trips.txt
         // now search in trips.txt lines with routeId, serviceId
-        List<String> allTripsOfRouteAtDate = List.ofAll( rzf
-                .tripLinesFromFile(gtfsZipFileFullPath)
+        List<String> allTripsOfRouteAtDate = List.ofAll(
+                tripFileReader.retrieveTripLinesFromFile(gtfsZipFileFullPath))
                 .filter(line -> line.startsWith(prefixRouteAndService))
-                .sorted()
-                .collect(Collectors.toList())
-        );
+                .sorted();
         // result is:
         /*
 15532,19902,41569028_151019,,1,106264
@@ -2046,7 +2058,7 @@ public class SiriData {
     // uses GIS methods to calculate the distance between the 2 stops <from> and <to> on the shape of route <routeId>
     public String calcDistance(String routeId, String date, String[] from, String[] to, String precision, String method) {
 
-        java.util.List<String> shape = shapesService.retrieveShape(routeId, date);
+        List<String> shape = shapesService.retrieveShape(routeId, date);
         //List.ofAll(shape).take(10).forEach(line -> logger.info(line));
         /*
 2019-11-06 09:23:17.427  INFO 19596 --- [nio-8080-exec-2] org.hasadna.gtfs.service.SiriData        : 106873,31.712682,34.989084,1
@@ -2061,8 +2073,7 @@ public class SiriData {
 2019-11-06 09:23:17.428  INFO 19596 --- [nio-8080-exec-2] org.hasadna.gtfs.service.SiriData        : 106873,31.712504,34.989342,10
          */
         List<Tuple2<Integer,String[]>> shapePoints =
-                List.ofAll(shape)
-                        .map(line -> {
+                shape.map(line -> {
                             String[] s = line.split(",");
                             Tuple2<Integer,String[]> shapePoint = Tuple.of(Integer.parseInt(s[3]), new String[]{s[1], s[2]} );
                             return shapePoint;

@@ -346,15 +346,17 @@ public class Stops {
     Map<String, Map<String, StopData>> stopsMapsForAllDates = HashMap.empty();
 
     public Map<String, StopData> readStopsMap(final String date) {
+        logger.info("generating stops map for date {} ...", date);
         //this.gtfsZipFileDirFullPath = "/home/evyatar/logs/work/2019-04/gtfs/" ;
         String gtfsZipFileName = decideGtfsFileName(date);
         Map<String, StopData> stopsMap = this.readStopDataFromFile(gtfsZipFileName);
+        logger.info("                                 ... Done");
         return stopsMap;
     }
 
     public Map<String, StopData> getMapForDate(final String date) {
         try {
-            logger.info("get stops map for {} ...", date);
+            logger.debug("get stops map for {} ...", date);
             if (stopsMapsForAllDates.containsKey(date)) {
                 return stopsMapsForAllDates.get(date).get();
             } else {
@@ -363,7 +365,7 @@ public class Stops {
             }
         }
         finally {
-            logger.info("                     ... Done");
+            logger.debug("                     ... Done");
         }
     }
 

@@ -6,6 +6,7 @@ import org.dizitart.no2.NitriteCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -15,6 +16,7 @@ import java.util.Iterator;
 import static org.dizitart.no2.filters.Filters.eq;
 
 @Component
+@Profile("never")
 public class NitriteMemoryDB implements MemoryDB {
 
     private static Logger logger = LoggerFactory.getLogger(NitriteMemoryDB.class);
@@ -33,7 +35,7 @@ public class NitriteMemoryDB implements MemoryDB {
 
     @PostConstruct
     public void init() {
-
+        logger.info("init nitrite");
         // nitrite db
         ndb = Nitrite.builder()
                 .filePath(nitritePath)

@@ -53,9 +53,9 @@ public class LongOperationsControllerTest {
     public void testListOfRoutes1() {
         String routes = routeIdsBS.collect(Collectors.joining(","));
         logger.debug(routes);
-        Assertions.assertThat(routes).contains("15438");
+        //Assertions.assertThat(routes).contains("15438");
         List datesWithProblems = List.ofAll(
-            Stream.rangeClosed(3, 3)
+            Stream.rangeClosed(20, 22)
                 .map(i -> Integer.toString(i))
                 .map(s -> (s.length() == 1)? ("0" + s) : s)
                 .map(s -> "2019-12-" + s)

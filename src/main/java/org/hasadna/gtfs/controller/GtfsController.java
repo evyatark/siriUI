@@ -259,15 +259,28 @@ public class GtfsController {
     }
 
     @GetMapping("gtfs/stops/{tripId}/{date}")
-    public Map<String, Map<Integer, StopsTimeData>> generateStopsMap1(@PathVariable final String tripId, @PathVariable final String date ) {
+    public java.util.Map<String, java.util.Map<Integer, StopsTimeData>> generateStopsMap1(@PathVariable final String tripId, @PathVariable final String date ) {
         logger.info("===> gtfs/stops/{}/{}", tripId, date);
         try {
-            return stops.generateStopsMap1(HashSet.of(tripId), date, false);
+            Map<String, Map<Integer, StopsTimeData>> result = stops.generateStopsMap1(HashSet.of(tripId), date, false);
+            return convert1(result);
         }
         finally {
             logger.info("<=== gtfs/stops/{}/{}", tripId, date);
         }
 
+    }
+
+    private java.util.Map<String,java.util.Map<Integer, StopsTimeData>> convert1(Map<String, Map<Integer, StopsTimeData>> map) {
+        java.util.Map<String,java.util.Map<Integer, StopsTimeData>> jresult = new java.util.HashMap<>();
+        map.keySet().forEach(key -> jresult.put(key, convert2(map.get(key).get())));
+        return jresult;
+    }
+
+    private java.util.Map<Integer, StopsTimeData> convert2(Map<Integer, StopsTimeData> map) {
+        java.util.Map<Integer, StopsTimeData> result = new java.util.HashMap<>();
+        map.keySet().forEach(key -> result.put(key, map.get(key).get()));
+        return result;
     }
 
     @GetMapping("siri/trips/full/{routeId}/{date}")
@@ -423,14 +436,14 @@ public class GtfsController {
 
     private String convertToJson(Map<String, Stream<String>> trips) throws JsonProcessingException {
         logger.debug("converting to JSON...");
-        List<ShortTrip> tripsSummary =
+        java.util.List<ShortTrip> tripsSummary =
                 trips
                         .keySet()
                         .map(key -> Tuple.of(key,
                                 Utils.extractAimedDeparture(trips.getOrElse(key, Stream.empty()).head()),
                                 trips.getOrElse(key, Stream.empty()).size())  )
                         .map(tup -> ShortTrip.of(tup._1, tup._2, tup._3))
-                        .toList();
+                        .toList().toJavaList();
         ObjectMapper x = new ObjectMapper();
         String json = x.writeValueAsString(tripsSummary);
         logger.debug("                  ... Done");
@@ -453,7 +466,7 @@ public class GtfsController {
 
     private String convertToJson(List<TripData> trips) throws JsonProcessingException {
         // shorten the Json:
-        List<ShortTrip> shortTrips = minimize(trips);
+        java.util.List<ShortTrip> shortTrips = minimize(trips).toJavaList();
         logger.debug("converting to JSON...");
         ObjectMapper x = new ObjectMapper();
         String json = x.writeValueAsString(shortTrips);
