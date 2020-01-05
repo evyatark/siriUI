@@ -3,6 +3,7 @@ package org.hasadna.gtfs.service;
 import io.vavr.collection.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StopWatch;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -69,6 +70,18 @@ public class Utils {
         List<String> dirs = List.of(possibleDirectories.split(File.pathSeparator));
         if (dirs.isEmpty()) return fileName;
         return dirs.get(0) + File.separatorChar + fileName;
+    }
+
+
+    public static StopWatch stopwatchStart() {
+        StopWatch sw = new StopWatch();
+        sw.start();
+        return sw;
+    }
+
+    public static String stopwatchStopInMillis(StopWatch sw) {
+        sw.stop();
+        return Long.toString(sw.getLastTaskTimeMillis());
     }
 
 }
