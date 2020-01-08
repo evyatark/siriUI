@@ -45,8 +45,7 @@ public class GtfsControllerTest {
     MemoryDB memoryDB;
 
     List<String> routeIdsBS = List.of(
-             "16211","16212"        // line 7
-            ,"15540","15541"        // line 15
+            "15540","15541"        // line 15
             ,"15494","15495"        // line 14
             ,"15491","8482"         // line 12
             ,"15489","15490"        // line 11
@@ -63,8 +62,9 @@ public class GtfsControllerTest {
             ,"15552","15553"  // line 414
             ,"15529","15530"  // line 416
             ,"16066","16067"  // line 419
-            ,
-            "15531","15532"  // line 420
+            ,"16211","16212"        // line 7
+
+            ,"15531","15532"  // line 420
             ,"6660","6661", "6656"          // line 417
 
 /*
@@ -192,8 +192,8 @@ public class GtfsControllerTest {
     public void testBeitShemeshRoutes() {
         String aDate = "2019-05-26";
 
-        String result1 = measure(() -> processAll(aDate, routeIdsBS));
-        String result2 = measure(() -> processAll(aDate, routeIdsBS));    // second time is supposed to be much faster...
+        String result1 = measure(() -> processAll(aDate, routeIdsBS), aDate);
+        String result2 = measure(() -> processAll(aDate, routeIdsBS), aDate);    // second time is supposed to be much faster...
 
         Assertions.assertThat(result1).isEqualTo(result2);
     }
@@ -211,7 +211,7 @@ public class GtfsControllerTest {
 
     @Test
     public void testSeveralRoutesAndDates() {
-        List<String> dates = Stream.rangeClosed(1,5).map(i -> "2019-07-" + padNumber(i,2)).toList();
+        List<String> dates = Stream.rangeClosed(20, 22).map(i -> "2019-12-" + padNumber(i,2)).toList();
         dates.forEach(date -> testAllBSRoutesAtDate(date));
     }
 
@@ -221,13 +221,13 @@ public class GtfsControllerTest {
         dates.forEach(date -> compareGtfsSiriForAllBSRoutesAtDate(date));
     }
 
-    private String measure(java.util.function.Supplier<String> f) {
+    private String measure(java.util.function.Supplier<String> f, String textDisplay) {
         long start = System.currentTimeMillis();
         String output = f.get();
         long end = System.currentTimeMillis();
         long duration = (end - start);
         logger.info("\n\n============================\n\n");
-        logger.info("duration= {} MilliSeconds", duration);
+        logger.info(textDisplay + ": duration= {} MilliSeconds", duration);
         logger.info("\n\n============================\n\n");
         return output;
     }
@@ -236,25 +236,32 @@ public class GtfsControllerTest {
         List<String> routeIds = routeIdsBS;
 
         logger.info("start processing for date {} for {} routes...", date, routeIds.size());
-        measure(() -> processShortTripForAll(date, routeIds));
+        measure(() -> processShortTripForAll(date, routeIds), date);
     }
+
 
 
     public void testAllBSRoutesAtDate(String date) {
         List<String> routeIds = routeIdsBS;
 
         logger.info("start processing for date {} for {} routes...", date, routeIds.size());
-        measure(() -> processAll(date, routeIds));
+        measure(() -> processAll(date, routeIds), date);
     }
 
-    public void testAllRoutesAtDate(String date) {
+    @Test
+    public void testOneRouteAndDate() {
+        List<String> dates = Stream.rangeClosed(21, 21).map(i -> "2019-12-" + padNumber(i,2)).toList();
+        dates.forEach(date -> testAllRoutesAtDate(date, 5));
+    }
+
+    public void testAllRoutesAtDate(String date, int limit) {
         List<String> routeIds = routes
                 .allRoutesByDate(date)
-                .take(10)
+                .take(limit)
                 .map(routeData -> routeData.routeId);
 
         logger.info("start processing for date {} for {} routes...", date, routeIds.size());
-        measure(() -> processAll(date, routeIds));
+        measure(() -> processAll(date, routeIds), date);
     }
 
     private String processAll(String date, List<String> routeIds) {
@@ -277,7 +284,7 @@ public class GtfsControllerTest {
             // here compute json only for first item in the list
             String json = siriData.convertToJson(allFromTripIdToDate.get(allFromTripIdToDate.keySet().iterator().next()).get());
             return json;
-        });
+        }, date);
     }
 
     private String processShortTripForAll(String date, List<String> routeIds) {

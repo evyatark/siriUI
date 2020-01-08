@@ -268,7 +268,6 @@ public class SiriData {
     @Autowired
     Spark spark;
 
-    //@Cacheable("siriByRouteAndDay")
     public String dayResults(final String routeId, final String date, final boolean withReadingSiriLogs) {
 
         String json;
@@ -305,7 +304,7 @@ public class SiriData {
 
         final String json = convertToJson(tripsData);
 
-        logger.trace("json result: {}", json.length() > 100 ? json.substring(0, 100) : json);
+        if (logger.isTraceEnabled()) logger.trace("json result: {}", json.length() > 100 ? json.substring(0, 100) : json);
         logger.debug("writing result to inMemoryDB with key {}", key);
 
         if (tripsData != null) db.writeKeyValue(key, json);
@@ -314,6 +313,7 @@ public class SiriData {
 
     private List<TripData> dayResultsWithSiri1(final String routeId, final String date) {
         // SIRI
+        StopWatch sw = Utils.stopwatchStart();
 
         // this reads all siri logs (of that day) to find text lines of that route
         // map of all trips of the specified routeId at day {date}
@@ -327,10 +327,13 @@ public class SiriData {
 
         // geographic (distances)
         if (enrichWithDistance) {
-            logger.info("enriching tripsData {}, {} with geographic data", routeId, date);
+            logger.debug("enriching tripsData {}, {} with geographic data", routeId, date);
+            StopWatch sw2 = Utils.stopwatchStart();
             tripsData = enrich(tripsData, routeId, date);
+            logger.info("enriched tripsData {}, {} with geographic data   ({} ms)", routeId, date, Utils.stopwatchStopInMillis(sw2));
         }
 
+        logger.info("completed dayResults with siri, routeId={}, date={}   ({} ms)", routeId, date, Utils.stopwatchStopInMillis(sw));
         return tripsData;
     }
 
@@ -352,14 +355,15 @@ public class SiriData {
             StopFeature[] allStopsOnRoute = theChosen.stops.features;
             StopFeature firstDepartureStop = List.of(allStopsOnRoute).find(stop -> "1".equals(stop.properties.stop_sequence)).getOrNull();
             if (firstDepartureStop != null) {
-                logger.info("adjusting start of route to first stop...");
+                logger.debug("adjusting start of route to first stop...");
+                StopWatch sw = Utils.stopwatchStart();
                 Coordinate locationOfFirstDepartureStopInGeographicLatLon = fromFeature(firstDepartureStop.geometry);
                 Coordinate utmCoord = convertLatLonToITM(locationOfFirstDepartureStopInGeographicLatLon);
                 startOfLine = utmCoord;
                 double indexOfFirstDepartureStop = indexedLine.project(startOfLine);
                 indexedLine = new LengthIndexedLine( indexedLine.extractLine(indexOfFirstDepartureStop, indexedLine.getEndIndex()) );
                 start = indexedLine.getStartIndex();
-                logger.info("... adjusted");
+                logger.debug("... adjusted   ({} ms)", Utils.stopwatchStopInMillis(sw));
             }
             for (TripData tripData : tripsData) {
                 if (tripData.siri == null) continue;
@@ -411,9 +415,8 @@ public class SiriData {
 
     private String convertToUtmAndConstructWktFromShape(String shape) throws ParseException {
         String coordsInShape = shape.split("\"shape\":")[1];
-        logger.info("{}", coordsInShape);
-        String json =
-                "{\"type\": \"LineString\",\"coordinates\": " +
+        if (logger.isTraceEnabled()) logger.trace("convertToUtmAndConstructWktFromShape: shape={}", coordsInShape);
+        String json = "{\"type\": \"LineString\",\"coordinates\": " +
                         shape.split("\"shape\":")[1];
         Geometry geometry = (new GeoJsonReader()).read(json);
         Coordinate[] coords = geometry.getCoordinates();
@@ -587,7 +590,6 @@ public class SiriData {
             // Map<String, io.vavr.collection.Stream<String>> trips
             StopWatch sw = Utils.stopwatchStart();
             java.util.List<String> list =  getBy(date, routeId);
-            sw.stop();
             logger.debug("pure retrieved Stream<String> from DB: {} ms", Utils.stopwatchStopInMillis(sw));
             return Stream.ofAll(list);
         }
@@ -724,8 +726,9 @@ public class SiriData {
 
     // combine 2 independant invocations (siri, gtfs)
     public List<TripData> buildFullTripsData2(Map<String,io.vavr.collection.Stream<String>> trips, String date, String routeId) {
-
+        StopWatch sw = Utils.stopwatchStart();
         // from GTFS:
+        StopWatch sw1 = Utils.stopwatchStart();
 
         // Result might already be in DB, so first we check there
         // and convert from json back to List<TripData>
@@ -733,12 +736,18 @@ public class SiriData {
         String fromDB = db.readKey(generateKey("gtfs", routeId, date));
         if ((fromDB != null) && !"[]".equals(fromDB)) {
             tripsAccordingToGtfsTripIdToDate = convertFromJson(fromDB);
+            logger.debug("list of TripData retrieved from DB and converted to JSON   ({} ms)", Utils.stopwatchStopInMillis(sw1));
         }
         else {
+            logger.debug("GTFS result not found in DB   ({} ms)", Utils.stopwatchStopInMillis(sw1));
             // result not in DB, so calculate it
+            StopWatch sw3 = Utils.stopwatchStart();
             tripsAccordingToGtfsTripIdToDate = buildFullTripsDataWithoutSiri(date, routeId);
+            logger.debug("list of TripData calculated from GTFS   ({} ms)", Utils.stopwatchStopInMillis(sw3));
             // and insert to DB
+            StopWatch sw2 = Utils.stopwatchStart();
             db.writeKeyValue(generateKey("gtfs", routeId, date), convertToJson(tripsAccordingToGtfsTripIdToDate));
+            logger.debug("list of TripData converted to JSON and saved to DB   ({} ms)", Utils.stopwatchStopInMillis(sw2));
         }
 
         // from Siri:
@@ -772,6 +781,7 @@ public class SiriData {
         }
         displaySuspiciousTrips(tripsData);
 
+        logger.info("buildFullTripsData2 (routeId={}, date={}) completed   ({} ms)", routeId, date, Utils.stopwatchStopInMillis(sw));
         return tripsData;
     }
 
@@ -900,15 +910,16 @@ public class SiriData {
         ]
      */
     public String convertToJson(final List<TripData> tripsData) {
-        logger.info("converting to JSON...");
+        logger.debug("converting to JSON  ...");
         try {
+            StopWatch sw = Utils.stopwatchStart();
             java.util.List javaList = tripsData.sortBy(tripData -> tripData.originalAimedDeparture).toJavaList();
             ObjectMapper x = new ObjectMapper();
             // vavr List does not create good JSON. so use java.util.List
             //String json = x.writeValueAsString(javaList);
             String json = x.writerWithDefaultPrettyPrinter().writeValueAsString(javaList);
-            logger.trace("{}",x.writerWithDefaultPrettyPrinter().writeValueAsString(javaList));
-            logger.info("                  ... Done");
+            if (logger.isTraceEnabled()) logger.trace("{}",x.writerWithDefaultPrettyPrinter().writeValueAsString(javaList));
+            logger.info("converting to JSON  ... Done   ({} ms)", Utils.stopwatchStopInMillis(sw));
             return json;
         } catch (JsonProcessingException e) {
             logger.error("exception during marshalling", e);
@@ -1230,8 +1241,8 @@ public class SiriData {
 
     private void displaySuspiciousTrips( List<TripData> tripsData) {
         List<String> suspicious = tripsData
-                                .filter(trip -> "true".equals( trip.suspicious))
-                                .map(tripData -> tripData.siriTripId);
+                .filter(trip -> "true".equals(trip.suspicious))
+                .map(tripData -> tripData.siriTripId);
         suspicious.forEach(tripId -> {
             int numberOfSiriPoints = tripsData
                     .filter(tripData -> tripData.siriTripId.equals(tripId))
@@ -1240,9 +1251,14 @@ public class SiriData {
         });
 
         List<String> dnsTrips = tripsData
-                                .filter(trip -> "true".equals( trip.dns))
-                                .map(tripData -> tripData.siriTripId);
-        logger.info("DNS trips:{}", dnsTrips);
+                .filter(trip -> "true".equals(trip.dns))
+                .map(tripData -> tripData.siriTripId);
+
+        if (dnsTrips.isEmpty()) {
+            logger.debug("no DNS trips");
+        } else {
+            logger.info("{} DNS trips: {}", dnsTrips.length(), dnsTrips);
+        }
     }
 
 

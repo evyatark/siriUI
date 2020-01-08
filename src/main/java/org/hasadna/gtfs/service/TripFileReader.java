@@ -20,4 +20,6 @@ public class TripFileReader {
     public List<String> retrieveTripLinesFromFile(String gtfsZipFileFullPath) {
         return new ReadZipFile().tripLinesFromFile(gtfsZipFileFullPath).toJavaList();
     }
+
+    // for seeing cache statistics, see https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/#production-ready-metrics-cache
 }
