@@ -1186,7 +1186,7 @@ public class SiriData {
 
             logger.debug("retrieve from GTFS data about stops");
             final Map<String, Map<Integer, StopsTimeData>> allFinal = stops.generateStopsMap1(alternateIds.toSet(), date, false);
-            logger.info("stops map from alternate trip Ids: {}",allFinal.toString());
+            logger.debug("stops map from alternate trip Ids: {}",allFinal.toString());
 
 /*
             logger.debug("retrieve from GTFS data about stops");

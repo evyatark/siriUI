@@ -72,6 +72,25 @@ public class GtfsControllerTest {
 
     );
 
+    /**
+     * This test creates the key_value rows for all dates in the range.
+     * It will quickly pass routes and dates that already have keys in the table.
+     * Typically it should be run after loading files of siriNN.csv and stop_timesNN.txt
+     * processing 1 day that is already in the key_value table, takes less than 1 second.
+     * Processing 1 day that is not yet in the key_value table, takes about 70 seconds
+     * (for the above list of routes).
+     * After running this test and creating the rows in key_value table, you can use
+     * the GtfsWebApp to view those routes. Displaying routes that have values in key_value
+     * is instantaneous.
+     */
+    @Test
+    public void testSeveralRoutesAndDates() {
+        List<String> dates = Stream.rangeClosed(20, 28).map(i -> "2019-12-" + padNumber(i,2)).toList();
+        dates.forEach(date -> testAllBSRoutesAtDate(date));
+    }
+
+
+
     RestTemplate restTemplate = new RestTemplate();
 
     @Test
@@ -209,11 +228,7 @@ public class GtfsControllerTest {
         return s ;
     }
 
-    @Test
-    public void testSeveralRoutesAndDates() {
-        List<String> dates = Stream.rangeClosed(20, 22).map(i -> "2019-12-" + padNumber(i,2)).toList();
-        dates.forEach(date -> testAllBSRoutesAtDate(date));
-    }
+
 
     @Test
     public void testCompareGtfsSiriForSeveralRoiutesAndDates() {
@@ -248,15 +263,22 @@ public class GtfsControllerTest {
         measure(() -> processAll(date, routeIds), date);
     }
 
+//    @Test
+//    public void testOneRouteAndDate() {
+//        List<String> dates = Stream.rangeClosed(21, 21).map(i -> "2019-12-" + padNumber(i,2)).toList();
+//        dates.forEach(date -> testAllRoutesAtDate(date, 5));
+//    }
+
     @Test
-    public void testOneRouteAndDate() {
-        List<String> dates = Stream.rangeClosed(21, 21).map(i -> "2019-12-" + padNumber(i,2)).toList();
-        dates.forEach(date -> testAllRoutesAtDate(date, 5));
+    public void processAllRoutesOnDate() {
+        List<String> dates = Stream.rangeClosed(17, 17).map(i -> "2019-12-" + padNumber(i,2)).toList();
+        dates.forEach(date -> calcAllRoutesAtDate(date, 5000000, 0));
     }
 
-    public void testAllRoutesAtDate(String date, int limit) {
+    public void calcAllRoutesAtDate(String date, int limit, int greaterThan) {
         List<String> routeIds = routes
                 .allRoutesByDate(date)
+                .filter(routeData -> Integer.parseInt(routeData.routeId) > greaterThan)
                 .take(limit)
                 .map(routeData -> routeData.routeId);
 
@@ -274,6 +296,11 @@ public class GtfsControllerTest {
         return output;
     }
 
+    @Test
+    public void processRoutesOnDate() {
+        List<String> dates = Stream.rangeClosed(18, 18).map(i -> "2019-12-" + padNumber(i,2)).toList();
+        dates.forEach(date -> calcAllRoutesAtDate(date, 5000000, 14162));
+    }
 
     @Test
     public void compareTripIdToDateReads() {

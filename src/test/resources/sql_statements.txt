@@ -1,0 +1,147 @@
+cd /home/evyatar/work/cg/poc/maxwell/docker/mysql
+docker build -t mmsql .
+docker run --name mymmsql -e MYSQL_ROOT_PASSWORD=password --network host  -d mmsql
+
+docker rm mymmsql
+docker rmi mmsql
+
+select count(*) from inside_raw;
+SET GLOBAL local_infile = 1;
+SHOW VARIABLES LIKE 'local_infile';
+
+CREATE TABLE gtfs_stop_times_raw (
+                                     trip_id VARCHAR(30) NOT NULL,
+                                     arrival_time  VARCHAR(30) NOT NULL,
+                                     departure_time VARCHAR(30) NOT NULL,
+                                     stop_id  VARCHAR(30) NOT NULL,
+                                     stop_sequence VARCHAR(5) NOT NULL,
+                                     pickup_type VARCHAR(5) NOT NULL,
+                                     drop_off_type VARCHAR(5) NOT NULL,
+                                     distance VARCHAR(30) NOT NULL,
+                                     id INT NOT NULL AUTO_INCREMENT,
+                                     date VARCHAR(30) NOT NULL,
+                                     PRIMARY KEY (id)
+);
+create unique index tsd on gtfs_stop_times_raw (trip_id, stop_sequence, date);
+
+LOAD DATA LOCAL INFILE '/home/evyatar/temp/stop_times27.txt'
+    INTO TABLE gtfs_stop_times_raw
+    FIELDS TERMINATED BY ',' ENCLOSED BY ''
+    lines TERMINATED BY '\n'
+    IGNORE 1 lines
+    SET date='2019-12-27';
+
+CREATE TABLE inside_raw (
+                            log_date VARCHAR(30) NOT NULL,
+                            description VARCHAR(255) NOT NULL,
+                            agency VARCHAR(5) NOT NULL,
+                            route_id VARCHAR(10) NOT NULL,
+                            line_name VARCHAR(10) NOT NULL,
+                            trip_id VARCHAR(10) NOT NULL,
+                            oad VARCHAR(30) NOT NULL,
+                            vehicle_id VARCHAR(20) NOT NULL,
+                            eta VARCHAR(30) NOT NULL,
+                            gps_date VARCHAR(30) NOT NULL,
+                            gps_long VARCHAR(20) NOT NULL,
+                            gps_lat VARCHAR(20) NOT NULL,
+                            date VARCHAR(20) NOT NULL,
+                            unknown VARCHAR(20) NOT NULL,
+                            format_version VARCHAR(5) NOT NULL,
+                            id INT NOT NULL AUTO_INCREMENT,
+                            PRIMARY KEY (id)
+);
+create index drt on inside_raw (date, route_id, trip_id);
+
+LOAD DATA LOCAL INFILE '/home/evyatar/temp/siri17.csv'
+    INTO TABLE inside_raw
+    FIELDS TERMINATED BY ','
+    ENCLOSED BY ''
+    lines  TERMINATED BY '\n' ;
+
+-- reclaiming space
+-- Each day may take about 15GB on disk. This includes the files stop_times26.txt, siri26.csv (2-3GB)
+-- but the main size is the DB tables.
+-- So reclaiming space is best done by dropping the tables inside_raw and gtfs_stop_times_raw.
+-- this clears about 5GB.
+-- If that is not enough, you should sqldump the key_value table (which you should do anyway).
+
+
+
+
+
+
+select count(*) from inside_raw;
+select count(*) from gtfs_stop_times_raw;
+SET GLOBAL local_infile = 1;
+SHOW VARIABLES LIKE 'local_infile';
+
+CREATE TABLE gtfs_stop_times_raw (
+                                     trip_id VARCHAR(30) NOT NULL,
+                                     arrival_time  VARCHAR(30) NOT NULL,
+                                     departure_time VARCHAR(30) NOT NULL,
+                                     stop_id  VARCHAR(30) NOT NULL,
+                                     stop_sequence VARCHAR(5) NOT NULL,
+                                     pickup_type VARCHAR(5) NOT NULL,
+                                     drop_off_type VARCHAR(5) NOT NULL,
+                                     distance VARCHAR(30) NOT NULL,
+                                     id INT NOT NULL AUTO_INCREMENT,
+                                     date VARCHAR(30) NOT NULL,
+                                     PRIMARY KEY (id)
+);
+create unique index tsd on gtfs_stop_times_raw (trip_id, stop_sequence, date);
+
+LOAD DATA LOCAL INFILE '/home/evyatar/temp/stop_times17.txt'
+    INTO TABLE gtfs_stop_times_raw
+    FIELDS TERMINATED BY ',' ENCLOSED BY ''
+    lines TERMINATED BY '\n'
+    IGNORE 1 lines
+    SET date='2019-12-17';
+
+CREATE TABLE inside_raw (
+                            log_date VARCHAR(30) NOT NULL,
+                            description VARCHAR(255) NOT NULL,
+                            agency VARCHAR(5) NOT NULL,
+                            route_id VARCHAR(10) NOT NULL,
+                            line_name VARCHAR(10) NOT NULL,
+                            trip_id VARCHAR(10) NOT NULL,
+                            oad VARCHAR(30) NOT NULL,
+                            vehicle_id VARCHAR(20) NOT NULL,
+                            eta VARCHAR(30) NOT NULL,
+                            gps_date VARCHAR(30) NOT NULL,
+                            gps_long VARCHAR(20) NOT NULL,
+                            gps_lat VARCHAR(20) NOT NULL,
+                            date VARCHAR(20) NOT NULL,
+                            unknown VARCHAR(20) NOT NULL,
+                            format_version VARCHAR(5) NOT NULL,
+                            id INT NOT NULL AUTO_INCREMENT,
+                            PRIMARY KEY (id)
+);
+create index drt on inside_raw (date, route_id, trip_id);
+
+LOAD DATA LOCAL INFILE '/home/evyatar/temp/siri26.csv'
+    INTO TABLE inside_raw
+    FIELDS TERMINATED BY ','
+    ENCLOSED BY ''
+    lines  TERMINATED BY '\n' ;
+
+
+drop table inside_raw;
+drop table gtfs_stop_times_raw;
+
+
+cd ~/logs/data
+zgrep -h .* siri_rt_data_v2.2019-12-27.* > ~/temp/siri27.csv
+unzip ../gtfs/gtfs2019-12-27.zip stop_times.txt -d ~/temp/
+mv ~/temp/stop_times.txt ~/temp/stop_times27.txt
+
+create table if not exists siri.key_value
+(
+	kind char(5) not null,
+	keyed varchar(50) not null,
+	value longtext charset utf8mb4 null,
+	primary key (kind, keyed),
+	constraint kv_keyed
+		unique (keyed)
+)
+charset=utf8;
+

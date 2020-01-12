@@ -78,7 +78,7 @@ public class Shapes {
             java.util.List<String> shapeLines = shapeById.retrieveShapeId(shapeId, gtfsZipFileFullPath);
             logger.info("collected {} lines for shape {}", shapeLines.size(), shapeId);
             String json = generateShapeJson(shapeLines, shapeId);
-            logger.info("json for shape {}: {}", shapeId, json.substring(0, 2000));
+            logger.debug("json for shape {}: {}", shapeId, json.substring(0, 2000));
             // [32.054065,35.239214][32.054393,35.239772][32.054735,35.240334]
             return json;
         }
