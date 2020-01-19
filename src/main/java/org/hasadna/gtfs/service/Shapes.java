@@ -89,11 +89,21 @@ public class Shapes {
     }
 
     private String generateShapeJson(java.util.List<String> shapeLines, String shapeId) {
+        long start = System.currentTimeMillis();
         String shapePoints = "" + shapeLines.stream()
                 .filter(line -> !StringUtils.isEmpty(line))
-                .map(line -> "[" + line.split(",")[1] + "," + line.split(",")[2] + "]")
+                .map(line -> {
+                    String[] sp = line.split(",");
+                    return "[" + sp[1] + "," + sp[2] + "]";
+                })
                 .reduce((a, b) -> a + "," + b).get();
         String result = "{\"shapeId\": \"" + shapeId + "\", \"shape\": [" + shapePoints + "]}";
+        long end = System.currentTimeMillis();
+        long duration = (end - start);
+        if (duration >= 500) {
+            // warn if it takes too long
+            logger.info("generateShapeJson({}): duration= {} MilliSeconds", shapeId, duration);
+        }
         return result;
     }
 

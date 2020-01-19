@@ -745,20 +745,26 @@ public class SiriData {
             tripsAccordingToGtfsTripIdToDate = buildFullTripsDataWithoutSiri(date, routeId);
             logger.debug("list of TripData calculated from GTFS   ({} ms)", Utils.stopwatchStopInMillis(sw3));
             // and insert to DB
-            StopWatch sw2 = Utils.stopwatchStart();
-            db.writeKeyValue(generateKey("gtfs", routeId, date), convertToJson(tripsAccordingToGtfsTripIdToDate));
-            logger.debug("list of TripData converted to JSON and saved to DB   ({} ms)", Utils.stopwatchStopInMillis(sw2));
+            //StopWatch sw2 = Utils.stopwatchStart();
+            String json = convertToJson(tripsAccordingToGtfsTripIdToDate);
+            //logger.debug("list of TripData converted to JSON   ({} ms)", Utils.stopwatchStopInMillis(sw2));
+            StopWatch sw4 = Utils.stopwatchStart();
+            String key = generateKey("gtfs", routeId, date);
+            db.writeKeyValue(key, json);
+            logger.info("JSON for key {} saved to DB   ({} ms)", key, Utils.stopwatchStopInMillis(sw4));
         }
 
         // from Siri:
         List<TripData> tripsAccordingToSiri = buildSiriData(trips, date, routeId);
 
-        logger.debug("before combine");
-        for (int index = 0 ; index < tripsAccordingToGtfsTripIdToDate.size(); index++) {
-            TripData tripData = tripsAccordingToGtfsTripIdToDate.get(index);
-            logger.debug("tripData siriTripId={},  alternateTripId={}, gtfsTripId={}, oad={}, stops={}", tripData.siriTripId, tripData.alternateTripId, tripData.gtfsTripId, tripData.originalAimedDeparture, tripData.stops );
-            if ((tripData.stops != null) && tripData.stops.features != null) {
-                logger.debug("{} stops exist", tripData.stops.features.length);
+        if (logger.isDebugEnabled()) {
+            logger.debug("before combine");
+            for (int index = 0; index < tripsAccordingToGtfsTripIdToDate.size(); index++) {
+                TripData tripData = tripsAccordingToGtfsTripIdToDate.get(index);
+                logger.debug("tripData siriTripId={},  alternateTripId={}, gtfsTripId={}, oad={}, stops={}", tripData.siriTripId, tripData.alternateTripId, tripData.gtfsTripId, tripData.originalAimedDeparture, tripData.stops);
+                if ((tripData.stops != null) && tripData.stops.features != null) {
+                    logger.debug("{} stops exist", tripData.stops.features.length);
+                }
             }
         }
 
@@ -771,11 +777,13 @@ public class SiriData {
             return List.empty();
         }
         else {
-            for (int index = 0 ; index < tripsData.size(); index++) {
-                TripData tripData = tripsData.get(index);
-                logger.debug("tripData siriTripId={},  alternateTripId={}, gtfsTripId={}, oad={}, stops={}", tripData.siriTripId, tripData.alternateTripId, tripData.gtfsTripId, tripData.originalAimedDeparture, tripData.stops );
-                if ((tripData.stops != null) && tripData.stops.features != null) {
-                    logger.debug("{} stops exist", tripData.stops.features.length);
+            if (logger.isDebugEnabled()) {
+                for (int index = 0; index < tripsData.size(); index++) {
+                    TripData tripData = tripsData.get(index);
+                    logger.debug("tripData siriTripId={},  alternateTripId={}, gtfsTripId={}, oad={}, stops={}", tripData.siriTripId, tripData.alternateTripId, tripData.gtfsTripId, tripData.originalAimedDeparture, tripData.stops);
+                    if ((tripData.stops != null) && tripData.stops.features != null) {
+                        logger.debug("{} stops exist", tripData.stops.features.length);
+                    }
                 }
             }
         }
@@ -926,6 +934,7 @@ public class SiriData {
             return "[]";
         }
     }
+
     public List<TripData> convertFromJson(String json) {
         if (StringUtils.isEmpty(json) || "[]".equals(json)) {
             return List.empty();
@@ -1179,7 +1188,7 @@ public class SiriData {
             final String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
             final List<String> tripLines = List.ofAll( tripFileReader.retrieveTripLinesFromFile(gtfsZipFileFullPath) );
             // actually these should be named gtfsTripIds
-            List<String> alternateIds = findAlternateTripIds(tripsData.get(0).routeId, date, tripLines, CalendarReader.make(directoryOfGtfsFile).readCalendar(date));
+            List<String> alternateIds = findAlternateTripIds(tripsData.get(0).routeId, date, tripLines, CalendarReader.make(directoryOfGtfsFile).readCalendar(date), gtfsZipFileFullPath);
             logger.info("alternate trip ids: {}", io.vavr.collection.List.ofAll(alternateIds).sorted().toJavaList());
             // add the alternateID to tripData.gtfsAlternateId
             tripsData.forEach(td -> td.alternateTripId = alternateIds.find(id -> id.startsWith(td.siriTripId + "_")).getOrElse(""));
@@ -1541,13 +1550,13 @@ public class SiriData {
     }
 
 
-    private Stream<String> readMakatFile(String date) {
+    private List<String> readMakatFile(String date) {
         String makatZipFileName = "TripIdToDate" + date + ".zip";    // TripIdToDate2019-05-17.zip
         String makatZipFileFullPath = Utils.findFile(directoryOfMakatFile, makatZipFileName);
         if (makatZipFileFullPath == null) {
             logger.warn("could not fine file {}, path used was: {}", makatZipFileFullPath, directoryOfMakatFile);
         }
-        return (new ReadZipFile()).makatLinesFromFile(makatZipFileFullPath);
+        return (new ReadZipFile()).makatLinesFromFile(makatZipFileFullPath).toList();
     }
 
     private List<TripData> findMissing(List<TripData> tripsAccordingToSiri, java.util.List<TripData> tripsAccordingToGtfsTripIdToDate) {
@@ -1619,13 +1628,13 @@ public class SiriData {
     public List<TripData> buildTripsFromTripIdToDate(String routeId, String date) {
         logger.info("looking for TripIdToDate trips of route {} on {}", routeId, date);
         try {
-            Stream<String> allTrips = readMakatFile(date);
-
+            List<String> allTrips = tripFileReader.readMakatFile(date);    //readMakatFile(date);
+            String calculatedDayInWeek = calcDayInWeek(date);
             List<TripData> result =
                     allTrips
                     .filter(line -> line.startsWith(routeId + ","))
                     // now filter by dayInWeek
-                    .filter(line -> dayInWeekIs(line, calcDayInWeek(date)))
+                    .filter(line -> dayInWeekIs(line, calculatedDayInWeek))
                             // TODO that filter is not enough, because some lines are for different date range
                     .filter(line -> matchDateRange(line, date))
                     .map(line -> {
@@ -1649,8 +1658,9 @@ public class SiriData {
     }
 
     private boolean matchDateRange(String line, String date) {
-        String dateFrom = extractDateFrom(line);
-        String dateTo = extractDateTo(line);
+        String[] dateToFrom = extractDateToFrom(line);
+        String dateFrom = dateToFrom[1];
+        String dateTo = dateToFrom[0];
         dateFrom = dateFrom.split(" ")[0];
         dateTo = dateTo.split(" ")[0];
         Integer[] localDateTo = extractDate(dateTo, "/");
@@ -1661,7 +1671,9 @@ public class SiriData {
         LocalDate date1 = LocalDate.of(localDateFrom[2], localDateFrom[1], localDateFrom[0]);
         boolean result = theDate.isEqual(date1) || theDate.isEqual(date2)
                 ||  (theDate.isAfter(date1) && theDate.isBefore(date2)) ;
-        logger.trace("{}: {}  {}  {}", result, date1, date, date2 );
+        if (logger.isTraceEnabled()) {
+            logger.trace("{}: {}  {}  {}", result, date1, date, date2);
+        }
         return result;
     }
 
@@ -1680,6 +1692,12 @@ public class SiriData {
 
     private String extractDateTo(String line) {
         return line.split(",")[5];
+    }
+
+    // sample line: 6660,10417,2,#,11/06/2019 00:00:00,11/07/2019 00:00:00,39559605,4,21:00,
+    private String[] extractDateToFrom(String line) {
+        String[] sp = line.split(",");
+        return new String[]{ sp[5], sp[4]};
     }
 
     private java.util.List<TripData> enrichAlternateTripId(java.util.List<TripData> result) {
@@ -1715,15 +1733,15 @@ public class SiriData {
 
 
     private boolean dayInWeekIs(String line, String calcDayInWeek) {
-        return calcDayInWeek.equals(extractDayInWeek(line));
+        return calcDayInWeek.equals(extractDayInWeek(line.split(",")));
     }
 
-    private String extractDayInWeek(String line) {
+    private String extractDayInWeek(final String[] splittedLine) {
         // LineDetailRecordId,OfficeLineId,Direction,LineAlternative,FromDate,ToDate,TripId,DayInWeek,DepartureTime
         // typical line: 15531,10420,1,0,11/12/2018 00:00:00,01/01/2200 00:00:00,35460323,6,09:15,
         // in lines of tripIdToDate, dayInWeek has the values 1, 2, 3, 4, 5, 6, 7
         // and it is the 8th item in the line
-        return line.split(",")[7];
+        return splittedLine[7];
     }
 
     private String calcDayInWeek(String date) {
@@ -1746,34 +1764,26 @@ public class SiriData {
      */
     private TripData createTripData(String line, String dateOfTrip) {
         TripData td = new TripData();
-        td.routeId = extractRouteIdFromTripIdToDateLine(line);
+        final String[] splittedLine = line.split(",");
+        td.routeId = extractRouteIdFromTripIdToDateLine(splittedLine);
         td.date = dateOfTrip;
-        //td.dayOfWeek = calcDayInWeek(dateOfTrip);
-        td.dayOfWeek = extractDayInWeek(line);      // the real day of week written in this line
-        td.siriTripId = extractTripIdIdFromTripIdToDateLine(line);
-        //td.siri1 = thisTrip.map(line -> createSiriReading(line)).toJavaList();
-//        td.siri = new SiriFeatureCollection(thisTrip.map(line -> createSiriPart(line)).asJava().toArray(new SiriFeature[]{}));
-//        td.vehicleId = extractVehicleId(firstLine);
-//        td.agencyCode = extractAgency(firstLine);
-//        td.agencyName = agencyNameFromCode(td.agencyCode);
-//        td.shortName = extractShortName(firstLine);
-        td.originalAimedDeparture = extractAimedDepartureFromTripIdToDateLine(line);
-//        td.suspicious = false;
-//        if (td.siri.features.length < 20) {td.suspicious = true;};
+        td.dayOfWeek = extractDayInWeek(splittedLine);      // the real day of week written in this line
+        td.siriTripId = extractTripIdIdFromTripIdToDateLine(splittedLine);
+        td.originalAimedDeparture = extractAimedDepartureFromTripIdToDateLine(splittedLine);
         return td;
     }
 
     // sample line: 6660,10417,2,#,11/06/2019 00:00:00,11/07/2019 00:00:00,39559605,4,21:00,
-    private String extractAimedDepartureFromTripIdToDateLine(String line) {
-        return line.split(",")[8];
+    private String extractAimedDepartureFromTripIdToDateLine(final String[] splittedLine) {
+        return splittedLine[8];
     }
 
-    private String extractTripIdIdFromTripIdToDateLine(String line) {
-        return line.split(",")[6];
+    private String extractTripIdIdFromTripIdToDateLine(final String[] splittedLine) {
+        return splittedLine[6];
     }
 
-    private String extractRouteIdFromTripIdToDateLine(String line) {
-        return line.split(",")[0];
+    private String extractRouteIdFromTripIdToDateLine(final String[] splittedLine) {
+        return splittedLine[0];
     }
 
     /**
@@ -1876,19 +1886,19 @@ public class SiriData {
     }
     */
 
-    public List<String> findAlternateTripIds1(final String routeId, final String date) {
-        return findAlternateTripIds(routeId, date, List.empty(), HashMap.empty());
-    }
+//    public List<String> findAlternateTripIds1(final String routeId, final String date) {
+//        return findAlternateTripIds(routeId, date, List.empty(), HashMap.empty());
+//    }
 
-    public List<String> findAlternateTripIds(final String routeId, final String date, final List<String> tripLinesIn, final Map<String, List<String>> serviceIdToCalendarLinesIn) {
+    public List<String> findAlternateTripIds(final String routeId, final String date, final List<String> tripLinesIn, final Map<String, List<String>> serviceIdToCalendarLinesIn, final String gtfsZipFileFullPath) {
         Map<String, List<String>> serviceIdToCalendarLinesTemp = serviceIdToCalendarLinesIn;
         //in trips.txt search: grep "^15532," trips.txt
         // (15532 is the routeId)
         logger.debug("searching trips.txt for trip IDs of route {} (lines in trips.txt that start with {})", routeId, routeId);
         List<String> tripLines = tripLinesIn;
         if ((tripLines == null) || tripLines.isEmpty()) {
-            final String gtfsZipFileName = decideGtfsFileName(date);
-            final String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
+//            final String gtfsZipFileName = decideGtfsFileName(date);
+//            final String gtfsZipFileFullPath = Utils.findFile(directoryOfGtfsFile, gtfsZipFileName);
             tripLines = List.ofAll( tripFileReader.retrieveTripLinesFromFile(gtfsZipFileFullPath) );
         }
         final String prefixRoute = routeId + "," ;
@@ -1899,9 +1909,11 @@ public class SiriData {
                 .distinct()
                 .sorted()
                 .collect(Collectors.toList());
-        logger.trace("found {} serviceIDs in trips.txt", serviceIds.size());
-        if (!serviceIds.isEmpty()) {
-            logger.trace("found these service IDs: {}", serviceIds);
+        if (logger.isTraceEnabled()) {
+            logger.trace("found {} serviceIDs in trips.txt", serviceIds.size());
+            if (!serviceIds.isEmpty()) {
+                logger.trace("found these service IDs: {}", serviceIds);
+            }
         }
         if (serviceIds.isEmpty()) {
             logger.warn("no service IDs found!");
@@ -1912,7 +1924,7 @@ public class SiriData {
             // for each serviceId, search: grep 19902 calendar.txt
             // (where 19902 is the serviceId)
             // result is (for example): 19902,0,0,1,1,1,0,0,20191015,20191019
-            logger.trace("searching calendar file");
+            logger.info("searching calendar file");
             serviceIdToCalendarLinesTemp = CalendarReader.make(directoryOfGtfsFile).readCalendar(date);
         }
         final Map<String, List<String>> serviceIdToCalendarLines = serviceIdToCalendarLinesTemp;
