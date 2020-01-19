@@ -298,8 +298,8 @@ public class GtfsControllerTest {
 
     @Test
     public void processRoutesOnDate() {
-        List<String> dates = Stream.rangeClosed(18, 18).map(i -> "2019-12-" + padNumber(i,2)).toList();
-        dates.forEach(date -> calcAllRoutesAtDate(date, 5000000, 14162));
+        List<String> dates = Stream.rangeClosed(19, 19).map(i -> "2019-12-" + padNumber(i,2)).toList();
+        dates.forEach(date -> calcAllRoutesAtDate(date, 5000000, 0));
     }
 
     @Test

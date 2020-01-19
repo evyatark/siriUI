@@ -348,7 +348,7 @@ public class SiriDataTest {
         String gtfsZipFileName = "gtfs" + date + ".zip";
         StopWatch sw = new StopWatch();
         sw.start();
-        List<String> tripIds = siriData.findAlternateTripIds(routeId, date, null, null);
+        List<String> tripIds = siriData.findAlternateTripIds(routeId, date, null, null, Utils.findFile(directoryOfGtfsFile,decideGtfsFileName(date)));
         sw.stop();
         logger.info("takes {} ms", sw.getLastTaskTimeMillis());
 
@@ -377,7 +377,7 @@ public class SiriDataTest {
         for (int i = 0 ; i < 10 ; i++) {
             for (String rid : List.of("15527", "15528", "15527", "15528", "15527", "15528", "15532")) {
                 sw.start();
-                siriData.findAlternateTripIds(rid, date, tripLines, serviceIdToCalendarLines);
+                siriData.findAlternateTripIds(rid, date, tripLines, serviceIdToCalendarLines, gtfsZipFileFullPath);
                 sw.stop();
                 logger.info("{} takes {} ms", rid, sw.getLastTaskTimeMillis());
             }
